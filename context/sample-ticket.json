@@ -1,0 +1,79 @@
+[
+    {
+        "id": "TKT-001",
+        "channel": "gmail",
+        "customer_email": "jane.doe@pixel-agency.com",
+        "customer_phone": null,
+        "subject": "Question about Gantt Charts",
+        "content": "Hi CloudStream team, I'm on the Starter plan and I can't find the Gantt chart view. Is it hidden somewhere or do I need to enable a setting?"
+    },
+    {
+        "id": "TKT-002",
+        "channel": "whatsapp",
+        "customer_email": null,
+        "customer_phone": "+14155550192",
+        "content": "Hey! My client is saying they can't see the 'Approve' button in the portal. Any idea why? I'm using the Pro plan."
+    },
+    {
+        "id": "TKT-003",
+        "channel": "web_form",
+        "customer_email": "tech-lead@webflow-pros.io",
+        "customer_phone": "+442079460958",
+        "subject": "API Documentation Access",
+        "content": "We just upgraded to the Pro plan. Where can I find my API key and the documentation for the webhooks?"
+    },
+    {
+        "id": "TKT-004",
+        "channel": "gmail",
+        "customer_email": "billing@marketing-group.com",
+        "customer_phone": null,
+        "subject": "Duplicate Charge Inquiry",
+        "content": "Hello, it appears our agency was billed twice this month for our Enterprise subscription. Can you please issue a refund for the duplicate transaction?"
+    },
+    {
+        "id": "TKT-005",
+        "channel": "whatsapp",
+        "customer_email": "jane.doe@pixel-agency.com",
+        "customer_phone": "+14155550192",
+        "content": "Quick follow up to my email about Gantt charts—does the Pro plan upgrade take effect immediately? We have a big deadline tomorrow."
+    },
+    {
+        "id": "TKT-006",
+        "channel": "web_form",
+        "customer_email": "support@startup-hub.com",
+        "customer_phone": null,
+        "subject": "Password Reset Link Not Arriving",
+        "content": "I've tried resetting my password three times now but the email never arrives. I checked my spam folder too."
+    },
+    {
+        "id": "TKT-007",
+        "channel": "whatsapp",
+        "customer_email": null,
+        "customer_phone": "+12025550107",
+        "content": "Can I add more than 5 projects on the Starter plan if I pay a one-time fee, or do I have to go to Pro?"
+    },
+    {
+        "id": "TKT-008",
+        "channel": "gmail",
+        "customer_email": "marcus@design-studio.co",
+        "customer_phone": "+13055550144",
+        "subject": "Stripe Integration Issue",
+        "content": "I'm getting a 'Connection Failed' error when trying to link my Stripe account. I am the admin on both platforms. Please help."
+    },
+    {
+        "id": "TKT-009",
+        "channel": "web_form",
+        "customer_email": "angry-user@competitor.com",
+        "customer_phone": null,
+        "subject": "Unsubscribe immediately",
+        "content": "Your software is too complicated and I'm tired of the bugs. Cancel my account and sue me if you want, I'm done!"
+    },
+    {
+        "id": "TKT-010",
+        "channel": "gmail",
+        "customer_email": "hello@creative-freelance.net",
+        "customer_phone": null,
+        "subject": "Asset Approval for PDFs",
+        "content": "Does the ClientBridge portal support sticky notes on multi-page PDFs, or just single images?"
+    }
+]
