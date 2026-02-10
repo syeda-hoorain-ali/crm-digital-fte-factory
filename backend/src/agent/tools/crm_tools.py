@@ -109,7 +109,7 @@ def create_support_ticket(customer_email_or_phone: str, channel: str, query: str
     # Create the ticket
     ticket = SupportTicket(
         ticket_id=ticket_id,
-        customer_id=CUSTOMER_DB.get(customer_email_or_phone, {}).get("customer_id", "unknown"),
+        customer_id=(CUSTOMER_DB.get(customer_email_or_phone).customer_id if CUSTOMER_DB.get(customer_email_or_phone) else "unknown"),
         channel=channel,
         query=query,
         timestamp=datetime.now().isoformat(),

@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     # LLM Configuration
     gemini_api_key: str
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+    llm_model: str = "gemini-2.5-flash"
 
     # Database Configuration
     database_url: str = "sqlite:///./crm_agent.db"

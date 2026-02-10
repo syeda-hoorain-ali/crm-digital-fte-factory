@@ -7,7 +7,7 @@ from src.settings import get_settings
 settings = get_settings()
 
 def main():
-    print("Starting CloudStream CRM Customer Success AI Agent - Incubation Stage")
+    print("Starting CloudStream CRM Customer Success AI Agent - Specialization Stage")
     settings.configure_llm_provider()
 
     # Run the customer success demo

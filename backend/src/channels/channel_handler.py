@@ -7,7 +7,7 @@ import asyncio
 from typing import Dict, Any
 from datetime import datetime
 from agents.memory import SQLiteSession
-from src.agent.core.main_agent import process_customer_query
+from src.agent import process_customer_query
 
 
 class ChannelHandler:

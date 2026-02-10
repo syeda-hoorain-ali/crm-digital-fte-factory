@@ -5,15 +5,18 @@ Each agent has a specific role and responsibility
 
 from agents import Agent, handoff
 from src.agent.tools.crm_tools import (
-    lookup_customer, 
-    create_support_ticket, 
-    escalate_ticket, 
-    search_product_docs, 
+    lookup_customer,
+    create_support_ticket,
+    escalate_ticket,
+    search_product_docs,
     save_reply_to_file
 )
+from src.settings import get_settings
 
 
 # Create specialist agents for different types of issues
+settings = get_settings()
+
 billing_agent = Agent(
     name="Billing Specialist",
     handoff_description="Handles billing and payment-related questions",
@@ -27,7 +30,7 @@ You are a billing specialist for CloudStream CRM. You handle questions about:
 
 Provide accurate information about our billing policies and procedures.
 """,
-    model="gemini-2.5-flash"  # Specify a compatible Gemini model
+    model=settings.llm_model  # Use model from settings
 )
 
 technical_support_agent = Agent(
@@ -43,7 +46,7 @@ You are a technical support specialist for CloudStream CRM. You handle questions
 
 Provide detailed technical guidance and troubleshooting steps.
 """,
-    model="gemini-2.5-flash"  # Specify a compatible Gemini model
+    model=settings.llm_model  # Use model from settings
 )
 
 sales_agent = Agent(
@@ -59,7 +62,7 @@ You are a sales specialist for CloudStream CRM. You handle questions about:
 
 Help customers understand the value of upgrading to higher-tier plans.
 """,
-    model="gemini-2.5-flash"  # Specify a compatible Gemini model
+    model=settings.llm_model  # Use model from settings
 )
 
 escalation_agent = Agent(
@@ -74,7 +77,7 @@ You are a senior support specialist for CloudStream CRM. You handle:
 
 Provide empathetic, personalized responses and work to retain customers.
 """,
-    model="gemini-2.5-flash"  # Specify a compatible Gemini model
+    model=settings.llm_model  # Use model from settings
 )
 
 
@@ -115,5 +118,5 @@ Remember to be empathetic and professional at all times.
         handoff(sales_agent),
         handoff(escalation_agent)
     ],
-    model="gemini-2.5-flash"  # Specify a compatible Gemini model
+    model=settings.llm_model  # Use model from settings
 )

@@ -216,15 +216,27 @@
       submitBtn.disabled = true;
 
       try {
-        // In a real implementation, this would send to the backend API
-        // For now, we'll simulate the API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Send the form data to the backend API
+        const response = await fetch('/api/web-form', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
 
         alert('Your ticket has been submitted successfully! Our AI agent will respond shortly.');
 
         // Reset form
         this.reset();
       } catch (error) {
+        console.error('Error submitting form:', error);
         alert('There was an error submitting your ticket. Please try again.');
       } finally {
         submitBtn.textContent = originalText;

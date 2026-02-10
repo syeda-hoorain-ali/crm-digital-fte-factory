@@ -54,7 +54,7 @@ async def run_customer_success_demo():
     project_root = current_file.parent.parent.parent
 
     # Load sample tickets from the context directory
-    sample_tickets_path = project_root / "context" / "sample-ticket.json"
+    sample_tickets_path = project_root / "context" / "sample-tickets.json"
     with open(sample_tickets_path, "r") as f:
         sample_tickets: List[Dict] = json.load(f)
 
@@ -68,7 +68,6 @@ async def run_customer_success_demo():
             print(f"Skipping ticket {ticket['id']} - no customer identifier")
             continue
 
-        query = ticket.get("content", "") or f"{ticket.get('subject', '')} {ticket.get('content', '')}".strip()
         query = f"{ticket.get('subject', '')}\n {ticket.get('content', '')}".strip() if ticket.get('subject') else ticket.get("content", "")
         channel = ticket["channel"]
 

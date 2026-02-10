@@ -4,7 +4,7 @@
 
 ### Analysis of Sample Tickets
 
-After analyzing the sample tickets in `context/sample-ticket.json`, I've identified several important patterns:
+After analyzing the sample tickets in `context/sample-tickets.json`, I've identified several important patterns:
 
 #### 1. Channel-Specific Communication Patterns
 

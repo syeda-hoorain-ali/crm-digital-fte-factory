@@ -12,7 +12,7 @@ Successfully completed the incubation stage of the CRM Digital FTE Factory Final
 - Created comprehensive discovery log in `specs/discovery-log.md`
 
 ### 2. Core Prototype Development (Exercise 1.2)
-- Built core interaction loop in `src/agent/core.py`
+- Built core interaction loop in `src/agent/core/agents.py` and `src/agent/core/runner.py`
 - Implemented multi-channel message processing
 - Added knowledge base with product documentation
 - Created intent classification system
@@ -20,7 +20,7 @@ Successfully completed the incubation stage of the CRM Digital FTE Factory Final
 - Implemented smart escalation logic
 
 ### 3. Memory & State Management (Exercise 1.3)
-- Designed comprehensive memory system in `src/agent/simple_memory.py`
+- Designed comprehensive memory system in `src/agent/memory.py` using `agents.memory.SQLiteSession`
 - Implemented customer profile tracking
 - Added conversation history management
 - Included sentiment analysis and churn risk scoring
@@ -58,7 +58,8 @@ The foundation is established for the next phase:
 ## Files Created
 
 - `specs/discovery-log.md` - Comprehensive analysis of requirements
-- `src/agent/core.py` - Main agent logic and processing
-- `src/agent/simple_memory.py` - Memory and state management
+- `src/agent/core/agents.py` - Agent definitions and logic
+- `src/agent/core/runner.py` - Processing and execution logic
+- `src/agent/memory.py` - Memory and state management using SQLiteSession
 - `src/web-form/index.html` - Customer-facing support form
 - Updated `README.md` - Project documentation
