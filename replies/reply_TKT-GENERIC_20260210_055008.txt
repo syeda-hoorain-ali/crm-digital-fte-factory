@@ -1,0 +1,14 @@
+Ticket ID: TKT-GENERIC
+Customer: tech-lead@webflow-pros.io
+Channel: web_form
+Timestamp: 2026-02-10T05:50:08.353006
+Reply:
+It looks like there's a temporary issue preventing me from creating a support ticket at this moment. My apologies for the inconvenience!
+
+However, I can still provide you with the information you need:
+
+Congratulations on your upgrade to the Pro plan! To find your API key, please navigate to **Settings > Integrations > API Keys** within your CloudStream CRM account.
+
+For the webhooks integration documentation, you can find it at: https://cloudstream-crm.com/docs/webhooks
+
+I've made a note of your query and will ensure that the system issue with ticket creation is looked into. If you have any further questions, please don't hesitate to ask!
