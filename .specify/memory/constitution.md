@@ -1,55 +1,98 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!-- SYNC IMPACT REPORT:
+Version change: 1.0.0 → 1.0.1
+Modified principles: None (new constitution)
+Added sections: All sections (new constitution)
+Removed sections: None (new constitution)
+Templates requiring updates:
+- .specify/templates/plan-template.md ✅ updated
+- .specify/templates/spec-template.md ✅ updated
+- .specify/templates/tasks-template.md ✅ updated
+- .specify/templates/commands/sp.constitution.md ⚠ pending
+Follow-up TODOs: None
+-->
+
+# CRM Digital FTE Factory Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Python-First Backend Architecture
+All backend services MUST be implemented in Python using modern frameworks. This ensures consistency across the codebase and leverages Python's rich ecosystem for AI/ML and data processing. FastAPI is the standard web framework for high-performance APIs.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Model Context Protocol (MCP) Standard
+All MCP servers MUST be implemented in Python following MCP specifications. MCP servers enable seamless integration with AI agents and provide standardized interfaces for external tooling and services.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. React Frontend Foundation
+All frontend applications MUST be built with React. The user interface should be component-based, responsive, and provide intuitive experiences for customer support operations. No additional testing frameworks are required for frontend components.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Pytest Testing Discipline (NON-NEGOTIABLE)
+Backend testing MUST use Pytest exclusively. All Python code requires comprehensive unit and integration tests with minimum 80% coverage. Tests must validate functionality, error handling, and performance characteristics.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. SQL-First Data Modeling
+Database design MUST follow SQL-first principles with normalized schemas. PostgreSQL is the standard database with Neon Serverless providing scalable infrastructure. SQLModel MUST be used for database interactions as it combines the power of SQLAlchemy with Pydantic validation. Alembic MUST be used for database versioning and migration management to ensure consistent schema evolution across environments.
 
-### [PRINCIPLE_6_NAME]
+### VI. Package Management with UV
+Python dependency management MUST use UV as the package manager. All dependencies must be explicitly declared in pyproject.toml files with pinned versions for reproducible builds.
 
+## Tech Stack Requirements
 
-[PRINCIPLE__DESCRIPTION]
+### Backend Technology Stack
+- Language: Python 3.12+
+- Framework: FastAPI for web services
+- Database: PostgreSQL with Neon Serverless
+- Object-Relational Mapping: SQLModel (with SQLAlchemy core)
+- Testing: Pytest with coverage validation
+- Package Management: UV
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### Frontend Technology Stack
+- Framework: React with TypeScript
+- State Management: Built-in React hooks or Context API
+- Styling: Tailwind CSS with shadcn/ui
+- Testing: Manual verification (no automated tests required)
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### Infrastructure and Deployment
+- MCP Servers: Python-based implementations with Official MCP SDK
+- Database: Neon Serverless PostgreSQL
+- Package Manager: UV for Python dependencies
+- Containerization: Docker for consistent deployment
+- Orchestration: Kubernetes manifests with Helm charts
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Development Workflow
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### Project Structure Requirements
+The codebase MUST follow the standardized folder structure as defined in the implementation guide:
+- `backend/` - Python/FastAPI service and agent logic
+- `mcp-server/` - Python-based Model Context Protocol servers
+- `frontend/` - React-based user interface
+- `alembic/` - Database migration versioning
+- `charts/` - Helm charts for Kubernetes deployment
+- `scripts/` - Utility scripts for setup and operations
+- `docs/` - Documentation
+- `specs/` - Specification and planning artifacts
+- `history/` - Prompt History Records and ADRs
+
+### Code Quality Standards
+- All Python code MUST follow PEP 8 standards
+- Type hints REQUIRED for all public interfaces
+- Comprehensive docstrings for modules, classes, and functions
+- Error handling with specific exception types
+- Logging with structured format using standard Python logging
+
+### Testing Requirements
+- Backend: 100% Pytest coverage with unit, integration, and E2E tests
+- Frontend: Manual verification sufficient (no automated tests required)
+- Performance: Load testing with Locust or similar tools
+- Security: Dependency scanning and vulnerability assessment
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution serves as the authoritative source for all technical and architectural decisions within the CRM Digital FTE Factory project. All team members, contributors, and stakeholders MUST comply with these principles.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+Amendments to this constitution require:
+1. Clear justification for changes
+2. Team consensus and approval
+3. Update of all dependent artifacts (specs, plans, tasks)
+4. Communication of changes to all stakeholders
+
+All pull requests and code reviews MUST verify compliance with these principles. Complexity in implementation must be justified with clear business value and architectural benefits.
+
+**Version**: 1.0.1 | **Ratified**: 2026-02-10 | **Last Amended**: 2026-02-10

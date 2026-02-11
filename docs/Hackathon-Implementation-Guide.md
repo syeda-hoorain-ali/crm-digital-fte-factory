@@ -113,7 +113,13 @@ crm-digital-fte/
 │   ├── Dockerfile
 │   ├── pyproject.toml            # Dependencies
 │   └── README.md
-├── frontend/                     # Next.js Application
+├── mcp-server/                   # Python/MCP server
+│   ├── src/                      # All source code
+│   ├── tests/                    # Pytest suite
+│   ├── Dockerfile
+│   ├── pyproject.toml            # Dependencies
+│   └── README.md
+├── frontend/                     # React Application
 │   ├── src/
 │   │   ├── components/           # SupportForm.tsx
 │   │   ├── pages/                # index.tsx
