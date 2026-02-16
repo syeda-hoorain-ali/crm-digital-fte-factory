@@ -1,0 +1,12 @@
+Ticket ID: TKT-005
+Customer: jane.doe@pixel-agency.com
+Channel: whatsapp
+Timestamp: 2026-02-13T15:14:45.962433
+Reply:
+Hello Jane,
+
+Thank you for reaching out! I understand that you have a big deadline tomorrow and need to confirm if your Pro plan upgrade will take effect immediately so you can access Gantt charts.
+
+I've created a support ticket for you (TKT-005) to track this. Since this is a time-sensitive question about plan upgrades and feature availability, I'm going to transfer your query to our Sales Specialist team. They will be able to provide you with the most accurate and immediate information regarding your Pro plan upgrade.
+
+You can expect to hear from them shortly. We appreciate your patience and are here to help you meet your deadline!

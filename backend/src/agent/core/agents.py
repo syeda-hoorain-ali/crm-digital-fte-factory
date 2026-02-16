@@ -12,6 +12,7 @@ from src.agent.tools.crm_tools import (
     save_reply_to_file
 )
 from src.settings import get_settings
+from src.agent.core.mcp import crm_digital_fte_mcp_server
 
 
 # Create specialist agents for different types of issues
@@ -30,6 +31,7 @@ You are a billing specialist for CloudStream CRM. You handle questions about:
 
 Provide accurate information about our billing policies and procedures.
 """,
+    mcp_servers=[crm_digital_fte_mcp_server],
     model=settings.llm_model  # Use model from settings
 )
 
@@ -46,6 +48,7 @@ You are a technical support specialist for CloudStream CRM. You handle questions
 
 Provide detailed technical guidance and troubleshooting steps.
 """,
+    mcp_servers=[crm_digital_fte_mcp_server],
     model=settings.llm_model  # Use model from settings
 )
 
@@ -62,6 +65,7 @@ You are a sales specialist for CloudStream CRM. You handle questions about:
 
 Help customers understand the value of upgrading to higher-tier plans.
 """,
+    mcp_servers=[crm_digital_fte_mcp_server],
     model=settings.llm_model  # Use model from settings
 )
 
@@ -77,6 +81,7 @@ You are a senior support specialist for CloudStream CRM. You handle:
 
 Provide empathetic, personalized responses and work to retain customers.
 """,
+    mcp_servers=[crm_digital_fte_mcp_server],
     model=settings.llm_model  # Use model from settings
 )
 
@@ -118,5 +123,6 @@ Remember to be empathetic and professional at all times.
         handoff(sales_agent),
         handoff(escalation_agent)
     ],
+    mcp_servers=[crm_digital_fte_mcp_server],
     model=settings.llm_model  # Use model from settings
 )

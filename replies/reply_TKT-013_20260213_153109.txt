@@ -1,0 +1,6 @@
+Ticket ID: TKT-013
+Customer: test-escalate@example.com
+Channel: web_form
+Timestamp: 2026-02-13T15:31:09.971623
+Reply:
+I understand you'd like to speak with a human agent immediately. I've created a support ticket for you, TKT-013, and escalated it to our team. A human agent will review your case and contact you within 2 hours to provide further assistance. Thank you for your patience.

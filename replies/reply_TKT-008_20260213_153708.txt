@@ -1,0 +1,18 @@
+Ticket ID: TKT-008
+Customer: marcus@design-studio.co
+Channel: gmail
+Timestamp: 2026-02-13T15:37:08.947335
+Reply:
+Hello Marcus,
+
+Thank you for reaching out. I understand you're encountering a 'Connection Failed' error while trying to link your Stripe account, and I appreciate you confirming that you have admin access on both platforms.
+
+I've created a support ticket for you: **TKT-008**.
+
+Since this appears to be a technical integration issue, I'm escalating it to our specialized technical support team. They will investigate this further and reach out to you directly as soon as possible to help resolve this. You can expect an update within 24 hours.
+
+We appreciate your patience while we work to get this resolved for you.
+
+Best regards,
+
+CloudStream CRM Support

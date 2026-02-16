@@ -1,0 +1,14 @@
+Ticket ID: TKT-001
+Customer: test@example.com
+Channel: web_form
+Timestamp: 2026-02-13T15:10:38.563601
+Reply:
+Hello!
+
+Thank you for reaching out. I've looked up information regarding Gantt charts in our knowledge base.
+
+Gantt charts are a feature available with our Pro and Enterprise plans. If you are currently on a Starter plan, you would need to upgrade to access this functionality.
+
+I've created a support ticket for you: TKT-001. You can refer to this ticket if you have any further questions.
+
+Please let me know if you have any other questions or if you'd like more information on upgrading your plan!

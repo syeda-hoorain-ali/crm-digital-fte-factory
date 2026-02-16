@@ -1,0 +1,10 @@
+Ticket ID: TKT-011
+Customer: test-ticket@example.com
+Channel: web_form
+Timestamp: 2026-02-13T15:30:46.001335
+Reply:
+Thank you for contacting CloudStream CRM. I understand that your account issue is urgent.
+
+I've created a support ticket for you (ID: TKT-011) and have escalated it to our senior support team for immediate attention. A human agent will be in touch with you very shortly to assist you further.
+
+We appreciate your patience as we work to resolve this for you.
