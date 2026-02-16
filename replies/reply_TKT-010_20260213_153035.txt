@@ -1,0 +1,12 @@
+Ticket ID: TKT-010
+Customer: test-search@example.com
+Channel: web_form
+Timestamp: 2026-02-13T15:30:35.052363
+Reply:
+Thank you for reaching out!
+
+Regarding your query about Gantt charts in our software, they are a powerful project management tool available exclusively with our Pro and Enterprise plans. If you are currently on a Starter plan, you would need to upgrade to access this feature.
+
+Would you be interested in learning more about our Pro or Enterprise plans, or perhaps speaking with a sales specialist who can walk you through the upgrade options and benefits in more detail?
+
+Your ticket ID is TKT-010, and we aim to resolve all queries within 24 hours.

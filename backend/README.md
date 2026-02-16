@@ -100,6 +100,33 @@ uv sync
 uv run main
 ```
 
+### API Endpoints
+
+The backend exposes the following API endpoints for interacting with the AI agent and MCP server:
+
+- `GET /` - Root endpoint returning API information
+- `GET /health` - Health check endpoint
+- `POST /test-mcp-search` - Test endpoint to search knowledge base using MCP server
+- `POST /process-query` - Process customer queries using the AI agent with MCP integration
+
+#### Example API Usage
+
+```bash
+# Test MCP search functionality
+curl -X POST "http://localhost:8000/test-mcp-search" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "customer onboarding process"}'
+
+# Process a customer query
+curl -X POST "http://localhost:8000/process-query" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "How do I reset my password?",
+    "customer_identifier": "john.doe@example.com",
+    "channel": "web_form"
+  }'
+```
+
 ## 🔐 Configuration
 
 The application uses environment variables managed through `.env` file. Key settings include:

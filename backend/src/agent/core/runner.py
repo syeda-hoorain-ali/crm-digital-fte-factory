@@ -6,13 +6,14 @@ Handles processing customer queries and running the agent
 import sys
 import json
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Union
 from agents import Runner
 from agents.memory import SQLiteSession
+from agents.extensions.memory import SQLAlchemySession
 from .agents import customer_success_agent
 
 
-async def process_customer_query(query: str, customer_identifier: str, channel: str, session: SQLiteSession):
+async def process_customer_query(query: str, customer_identifier: str, channel: str, session: Union[SQLiteSession, SQLAlchemySession]):
     """
     Process a customer query using the agent
 
@@ -20,7 +21,7 @@ async def process_customer_query(query: str, customer_identifier: str, channel: 
         query: The customer's query
         customer_identifier: Email or phone number of the customer
         channel: Communication channel (gmail, whatsapp, web_form)
-        session: Session for maintaining conversation history
+        session: Session for maintaining conversation history (either SQLite or SQLAlchemy based on environment)
     """
     # Prepare the input for the agent
     full_input = f"""
@@ -49,9 +50,18 @@ async def run_customer_success_demo():
     print("=" * 60)
 
 
-    # Get the project root directory (where pyproject.toml is located)
-    current_file = Path(__file__).resolve()
-    project_root = current_file.parent.parent.parent
+    # Get the project root directory using a more robust method
+    def find_project_root(marker_folder="context"):
+        """Find project root by looking for a marker folder."""
+        current = Path(__file__).resolve()
+
+        for parent in current.parents:
+            if (parent / marker_folder).exists():
+                return parent  # Return the root, not the context folder
+
+        raise FileNotFoundError(f"Could not find project root with '{marker_folder}' folder")
+
+    project_root = find_project_root("context")
 
     # Load sample tickets from the context directory
     sample_tickets_path = project_root / "context" / "sample-tickets.json"
@@ -77,8 +87,9 @@ async def run_customer_success_demo():
         print(f"Query: {query[:70]}{'...' if len(query) > 70 else ''}")
 
         try:
-            # Create a session for each customer for conversation history
-            session = SQLiteSession(f"customer_{customer_identifier}")
+            # Create an appropriate session for each customer for conversation history
+            from src.database.session_factory import create_session
+            session = create_session(customer_identifier)
 
             result = await process_customer_query(
                 query,

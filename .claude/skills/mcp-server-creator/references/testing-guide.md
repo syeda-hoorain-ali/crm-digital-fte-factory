@@ -45,7 +45,7 @@ from inline_snapshot import snapshot
 from mcp import Client
 from mcp.types import CallToolResult, TextContent
 
-from server import app
+from calculator_server import mcp
 
 
 @pytest.fixture
@@ -56,7 +56,7 @@ def anyio_backend():
 @pytest.fixture
 async def client():
     # The `client` fixture creates a connected client that can be reused across multiple tests.
-    async with Client(app, raise_exceptions=True) as c:
+    async with Client(mcp, raise_exceptions=True) as c:
         yield c
 
 @pytest.mark.anyio

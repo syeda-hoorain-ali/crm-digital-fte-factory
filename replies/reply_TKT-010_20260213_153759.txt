@@ -1,0 +1,17 @@
+Ticket ID: TKT-010
+Customer: hello@creative-freelance.net
+Channel: gmail
+Timestamp: 2026-02-13T15:37:59.537354
+Reply:
+Hello there!
+
+Thank you for reaching out to CloudStream CRM. I understand you have a question about whether the ClientBridge portal supports sticky notes on multi-page PDFs.
+
+I've created a support ticket for you: **TKT-010**.
+
+I've looked through our documentation, and I couldn't find a direct answer regarding sticky notes on multi-page PDFs. To ensure you get the most accurate information, I've escalated your ticket to a specialist. They will review your question and get back to you as soon as possible, typically within 2 hours.
+
+We appreciate your patience!
+
+Best regards,
+The CloudStream CRM Team

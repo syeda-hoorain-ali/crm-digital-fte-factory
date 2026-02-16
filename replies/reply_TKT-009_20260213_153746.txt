@@ -1,0 +1,14 @@
+Ticket ID: TKT-009
+Customer: angry-user@competitor.com
+Channel: web_form
+Timestamp: 2026-02-13T15:37:46.354209
+Reply:
+We understand your frustration, and we sincerely apologize for the negative experience you've had with our software. We're very sorry that you found it complicated and encountered bugs.
+
+We've received your request to cancel your account immediately. We are taking this seriously and will ensure your account is cancelled as per your request.
+
+Given the urgency and the nature of your feedback, we are escalating this issue to a senior support agent who will review your case and ensure everything is handled appropriately. They will be in touch with you directly to confirm the cancellation and address any further concerns you may have.
+
+We value your feedback, and we're truly sorry to see you go.
+
+Ticket ID: TKT-009

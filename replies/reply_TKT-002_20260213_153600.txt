@@ -1,0 +1,14 @@
+Ticket ID: TKT-002
+Customer: +14155550192
+Channel: whatsapp
+Timestamp: 2026-02-13T15:36:00.935286
+Reply:
+Hi there! Thanks for reaching out.
+
+I understand your client is unable to see the 'Approve' button in the portal. I've looked into this for you and created a support ticket: TKT-002.
+
+Based on our documentation, the 'Approve' button becomes visible in the ClientBridge portal when the project has been explicitly shared with the client. You can do this by navigating to the project settings and using the 'Share' menu to grant them viewing access.
+
+Please try sharing the project with your client, and they should then be able to see the 'Approve' button. If you've already done this or if the issue persists, please let me know, and we'll investigate further.
+
+I've saved this reply to your records.

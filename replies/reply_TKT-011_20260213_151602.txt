@@ -1,0 +1,12 @@
+Ticket ID: TKT-011
+Customer: test-search@example.com
+Channel: web_form
+Timestamp: 2026-02-13T15:16:02.087202
+Reply:
+Hello! Thank you for reaching out to CloudStream CRM.
+
+Regarding Gantt charts, our documentation indicates that this feature is available in our Pro and Enterprise plans. If you are currently on a Starter plan, you would need to upgrade to access Gantt charts.
+
+I've created a support ticket for you: TKT-011. You can refer to this ticket if you have any further questions.
+
+Please let us know if you have any other questions or if you'd like to explore upgrading your plan!

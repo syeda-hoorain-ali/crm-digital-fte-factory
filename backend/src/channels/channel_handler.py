@@ -7,7 +7,9 @@ import asyncio
 from typing import Dict, Any
 from datetime import datetime
 from agents.memory import SQLiteSession
+from agents.extensions.memory import SQLAlchemySession
 from src.agent import process_customer_query
+from src.database.session_factory import create_session
 
 
 class ChannelHandler:
@@ -16,10 +18,10 @@ class ChannelHandler:
     def __init__(self):
         self.sessions = {}  # Store sessions by customer identifier
 
-    def _get_or_create_session(self, customer_identifier: str) -> SQLiteSession:
-        """Get or create a session for a customer"""
+    def _get_or_create_session(self, customer_identifier: str):
+        """Get or create an appropriate session for a customer based on environment"""
         if customer_identifier not in self.sessions:
-            self.sessions[customer_identifier] = SQLiteSession(f"customer_{customer_identifier}")
+            self.sessions[customer_identifier] = create_session(customer_identifier)
         return self.sessions[customer_identifier]
 
     async def handle_gmail(self, customer_email: str, subject: str, message_body: str) -> Dict[str, Any]:

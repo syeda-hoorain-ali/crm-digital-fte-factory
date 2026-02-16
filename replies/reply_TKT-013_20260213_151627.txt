@@ -1,0 +1,6 @@
+Ticket ID: TKT-013
+Customer: test-history@example.com
+Channel: web_form
+Timestamp: 2026-02-13T15:16:27.246002
+Reply:
+I understand you're looking to access your account history. I've tried to look up your details using the provided email, but I couldn't find your information in our system. I've created a support ticket for you, TKT-013, and I'm escalating it to our senior support team who can investigate this further and help you retrieve your account history. You can expect a response within 24 hours.

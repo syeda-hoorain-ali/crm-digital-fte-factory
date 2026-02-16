@@ -1,0 +1,16 @@
+Ticket ID: TKT-003
+Customer: tech-lead@webflow-pros.io
+Channel: web_form
+Timestamp: 2026-02-13T15:36:10.947436
+Reply:
+Hello there!
+
+I understand you're looking for your API key and the documentation for webhooks after upgrading to the Pro plan. I'm happy to help you with that!
+
+You can find your API key by navigating to **Settings > Integrations > API Keys** within your CloudStream CRM account.
+
+For the webhook documentation, please visit: [https://cloudstream-crm.com/docs/webhooks](https://cloudstream-crm.com/docs/webhooks)
+
+I've created a support ticket for this query: TKT-003. If you have any further questions or need assistance, please don't hesitate to reply to this ticket.
+
+Thank you for being a CloudStream CRM customer!

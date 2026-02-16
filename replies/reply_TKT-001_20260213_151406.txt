@@ -1,0 +1,19 @@
+Ticket ID: TKT-001
+Customer: jane.doe@pixel-agency.com
+Channel: gmail
+Timestamp: 2026-02-13T15:14:06.035739
+Reply:
+Hello Jane,
+
+Thank you for reaching out!
+
+I've looked into your query regarding Gantt charts. It appears that the Gantt chart view is a feature available on our Pro and Enterprise plans. Your current Starter plan includes basic project management, team collaboration tools, and standard reporting, but does not include Gantt chart functionality.
+
+If you're interested in upgrading your plan to access Gantt charts and other advanced features, please let us know, and we'd be happy to provide you with more information on our Pro and Enterprise options.
+
+I have created a support ticket for your query: TKT-001.
+
+Please let me know if you have any other questions.
+
+Best regards,
+CloudStream Support Team
