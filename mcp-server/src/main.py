@@ -5,8 +5,11 @@ Implements the core MCP server with tools for customer support functionality.
 
 import logging
 from mcp.server.fastmcp import FastMCP
-from starlette.responses import Response, JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 from src.config import settings
+from src.utils.security import verify_token
 from src.tools.crm_tools import (
     search_product_docs_impl,
     create_support_ticket_impl,
@@ -22,6 +25,27 @@ logging.basicConfig(level=settings.log_level, format='%(asctime)s - %(name)s - %
 logger = logging.getLogger(__name__)
 
 
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Allow health check without auth
+        if request.url.path == "/health":
+            return await call_next(request)
+
+        # If no token is configured on the server, skip auth (for development)
+        if not settings.mcp_server_token:
+            return await call_next(request)
+
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return JSONResponse(status_code=401, content={"detail": "Unauthorized: Missing or invalid Authorization header"})
+
+        token = auth_header.split(" ", 1)[1]
+        if not verify_token(token):
+            return JSONResponse(status_code=403, content={"detail": "Forbidden: Invalid token"})
+
+        return await call_next(request)
+
+
 # Create the MCP server instance
 mcp = FastMCP(
     "crm-digital-fte",
@@ -30,6 +54,9 @@ mcp = FastMCP(
     host=settings.server_host,
     log_level=settings.log_level,
 )
+
+# Add the authentication middleware
+mcp.add_middleware(AuthMiddleware)
 
 
 @mcp.custom_route("/health", methods=["GET"]) 

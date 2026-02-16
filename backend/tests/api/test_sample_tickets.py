@@ -15,6 +15,17 @@ from src.main import app, crm_digital_fte_mcp_server
 from src.agent.core.mcp import crm_digital_fte_mcp_server as mcp_server_instance
 
 
+def find_project_root(marker_folder="context"):
+    """Find project root by looking for a marker folder."""
+    current = Path(__file__).resolve()
+
+    for parent in current.parents:
+        if (parent / marker_folder).exists():
+            return parent  # Return the root, not the context folder
+
+    raise FileNotFoundError(f"Could not find project root with '{marker_folder}' folder")
+
+
 def count_database_records():
     """Count records in backend's own database if any (though MCP server has its own DB)."""
     # Since the MCP server has its own database that's separate from the backend,
@@ -27,8 +38,9 @@ def test_sample_tickets_processing():
     """Test processing sample tickets from context/sample-tickets.json and verify tool calls"""
     print("Testing sample tickets processing and MCP tool verification...")
 
-    # Load sample tickets from JSON file
-    sample_tickets_path = Path(__file__).parent.parent.parent.parent / "context" / "sample-tickets.json"
+    # Load sample tickets from JSON file using robust path finding
+    project_root = find_project_root("context")
+    sample_tickets_path = project_root / "context" / "sample-tickets.json"
     with open(sample_tickets_path, "r") as f:
         sample_tickets: List[Dict] = json.load(f)
 

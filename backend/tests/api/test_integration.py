@@ -30,7 +30,7 @@ def test_api_endpoints():
 
         # Test MCP search endpoint (this will try to use the MCP server)
         query = "Hey! My client is saying they can't see the 'Approve' button in the portal. Any idea why? I'm using the Pro plan."
-        response = client.post("/process-query", params={"query": query})
+        response = client.post("/process-query", json={"query": query})
         print(f"MCP search endpoint: {response.status_code}")
         print(response)
         if response.status_code != 200:

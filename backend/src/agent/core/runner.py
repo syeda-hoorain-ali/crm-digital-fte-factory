@@ -50,9 +50,18 @@ async def run_customer_success_demo():
     print("=" * 60)
 
 
-    # Get the project root directory (where pyproject.toml is located)
-    current_file = Path(__file__).resolve()
-    project_root = current_file.parent.parent.parent.parent.parent
+    # Get the project root directory using a more robust method
+    def find_project_root(marker_folder="context"):
+        """Find project root by looking for a marker folder."""
+        current = Path(__file__).resolve()
+
+        for parent in current.parents:
+            if (parent / marker_folder).exists():
+                return parent  # Return the root, not the context folder
+
+        raise FileNotFoundError(f"Could not find project root with '{marker_folder}' folder")
+
+    project_root = find_project_root("context")
 
     # Load sample tickets from the context directory
     sample_tickets_path = project_root / "context" / "sample-tickets.json"

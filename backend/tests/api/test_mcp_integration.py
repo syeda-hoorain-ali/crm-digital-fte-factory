@@ -8,12 +8,24 @@ from fastapi.testclient import TestClient
 from src.main import app
 
 
+def find_project_root(marker_folder="context"):
+    """Find project root by looking for a marker folder."""
+    current = Path(__file__).resolve()
+
+    for parent in current.parents:
+        if (parent / marker_folder).exists():
+            return parent  # Return the root, not the context folder
+
+    raise FileNotFoundError(f"Could not find project root with '{marker_folder}' folder")
+
+
 def test_mcp_tool_calls_with_sample_tickets():
     """Test MCP server tool calls using sample tickets from JSON file."""
     print("Testing MCP server tool calls with sample tickets...")
 
-    # Load sample tickets
-    sample_tickets_path = Path(__file__).parent.parent.parent.parent / "context" / "sample-tickets.json"
+    # Load sample tickets using robust path finding
+    project_root = find_project_root("context")
+    sample_tickets_path = project_root / "context" / "sample-tickets.json"
     with open(sample_tickets_path, "r") as f:
         sample_tickets = json.load(f)
 
