@@ -1,3 +1,10 @@
+---
+title: CloudStream Product Documentation
+category: product_documentation
+description: Complete product documentation covering core modules, pricing plans, and troubleshooting guides
+tags: [product, documentation, features, pricing, troubleshooting]
+---
+
 # CloudStream Product Documentation: The Knowledge Base
 
 ## 1. Core Modules

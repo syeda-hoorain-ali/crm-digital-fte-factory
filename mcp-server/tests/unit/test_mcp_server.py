@@ -154,6 +154,128 @@ async def test_call_send_response_tool(client_session: ClientSession):
 
 
 @pytest.mark.anyio
+async def test_call_analyze_sentiment_tool(client_session: ClientSession):
+    # Test positive sentiment
+    result = await client_session.call_tool("analyze_sentiment", {
+        "message_text": "I love this product! It works perfectly!"
+    })
+    assert result is not None
+    assert result.isError is False
+    output = ''.join([part.text for part in result.content if isinstance(part, TextContent)])
+    assert output
+    assert '"sentiment_score"' in output
+    assert '"confidence"' in output
+    assert '"sentiment_label"' in output
+
+    # Test negative sentiment (escalation trigger)
+    result = await client_session.call_tool("analyze_sentiment", {
+        "message_text": "I am extremely frustrated and angry!"
+    })
+    assert result is not None
+    assert result.isError is False
+    output = ''.join([part.text for part in result.content if isinstance(part, TextContent)])
+    assert output
+    assert '"sentiment_label": "negative"' in output
+
+    # Test empty string handling
+    result = await client_session.call_tool("analyze_sentiment", {
+        "message_text": ""
+    })
+    assert result is not None
+    assert result.isError is False
+    output = ''.join([part.text for part in result.content if isinstance(part, TextContent)])
+    assert output
+    assert '"sentiment_score": 0.5' in output  # Should return neutral
+
+
+@pytest.mark.anyio
+async def test_call_identify_customer_tool_with_email(client_session: ClientSession):
+    """Test identify_customer with email only."""
+    import uuid
+    email = f"test_{uuid.uuid4().hex[:8]}@example.com"
+
+    result = await client_session.call_tool("identify_customer", {
+        "email": email
+    })
+    assert result is not None
+    assert result.isError is False
+    output = ''.join([part.text for part in result.content if isinstance(part, TextContent)])
+    assert output
+    assert '"customer_id"' in output
+    assert '"is_new": true' in output
+
+
+@pytest.mark.anyio
+async def test_call_identify_customer_tool_with_phone(client_session: ClientSession):
+    """Test identify_customer with phone only."""
+    import uuid
+    phone = f"+1-555-{uuid.uuid4().hex[:4]}"
+
+    result = await client_session.call_tool("identify_customer", {
+        "phone": phone
+    })
+    assert result is not None
+    assert result.isError is False
+    output = ''.join([part.text for part in result.content if isinstance(part, TextContent)])
+    assert output
+    assert '"customer_id"' in output
+    assert '"is_new": true' in output
+
+
+@pytest.mark.anyio
+async def test_call_identify_customer_tool_with_both(client_session: ClientSession):
+    """Test identify_customer with both email and phone."""
+    import uuid
+    email = f"test_{uuid.uuid4().hex[:8]}@example.com"
+    phone = f"+1-555-{uuid.uuid4().hex[:4]}"
+
+    result = await client_session.call_tool("identify_customer", {
+        "email": email,
+        "phone": phone
+    })
+    assert result is not None
+    assert result.isError is False
+    output = ''.join([part.text for part in result.content if isinstance(part, TextContent)])
+    assert output
+    assert '"customer_id"' in output
+    assert '"is_new": true' in output
+
+
+@pytest.mark.anyio
+async def test_call_identify_customer_tool_existing_customer(client_session: ClientSession):
+    """Test identify_customer finds existing customer."""
+    import uuid
+    email = f"test_{uuid.uuid4().hex[:8]}@example.com"
+
+    # Create customer
+    result1 = await client_session.call_tool("identify_customer", {
+        "email": email
+    })
+    assert result1 is not None
+    assert result1.isError is False
+    output1 = ''.join([part.text for part in result1.content if isinstance(part, TextContent)])
+    assert '"is_new": true' in output1
+
+    # Identify same customer
+    result2 = await client_session.call_tool("identify_customer", {
+        "email": email
+    })
+    assert result2 is not None
+    assert result2.isError is False
+    output2 = ''.join([part.text for part in result2.content if isinstance(part, TextContent)])
+    assert '"is_new": false' in output2
+
+
+@pytest.mark.anyio
+async def test_call_identify_customer_tool_error_no_identifiers(client_session: ClientSession):
+    """Test identify_customer error when no identifiers provided."""
+    result = await client_session.call_tool("identify_customer", {})
+    assert result is not None
+    # Should return an error
+    assert result.isError is True or "error" in ''.join([part.text for part in result.content if isinstance(part, TextContent)]).lower()
+
+
+@pytest.mark.anyio
 async def test_tool_list(client_session: ClientSession):
     # Get the list of available tools
     tools = await client_session.list_tools()
@@ -165,7 +287,9 @@ async def test_tool_list(client_session: ClientSession):
         "create_ticket",
         "get_customer_history",
         "escalate_to_human",
-        "send_response"
+        "send_response",
+        "analyze_sentiment",
+        "identify_customer"
     ]
 
     for tool_name in required_tools:

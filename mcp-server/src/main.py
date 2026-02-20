@@ -4,46 +4,27 @@ Implements the core MCP server with tools for customer support functionality.
 """
 
 import logging
+from typing import Optional
+from pydantic import AnyHttpUrl
 from mcp.server.fastmcp import FastMCP
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import JSONResponse
+from mcp.server.auth.settings import AuthSettings
+from starlette.responses import JSONResponse, Response
 from src.config import settings
-from src.utils.security import verify_token
-from src.tools.crm_tools import (
+from src.utils.security import AuthTokenVerifier
+from src.tools import (
     search_product_docs_impl,
     create_support_ticket_impl,
     lookup_customer_impl,
     escalate_ticket_impl,
     save_reply_impl,
-    initialize_database
+    analyze_sentiment_impl,
+    identify_customer_impl
 )
 
 
 # Configure structured logging
 logging.basicConfig(level=settings.log_level, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
-
-class AuthMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        # Allow health check without auth
-        if request.url.path == "/health":
-            return await call_next(request)
-
-        # If no token is configured on the server, skip auth (for development)
-        if not settings.mcp_server_token:
-            return await call_next(request)
-
-        auth_header = request.headers.get("Authorization")
-        if not auth_header or not auth_header.startswith("Bearer "):
-            return JSONResponse(status_code=401, content={"detail": "Unauthorized: Missing or invalid Authorization header"})
-
-        token = auth_header.split(" ", 1)[1]
-        if not verify_token(token):
-            return JSONResponse(status_code=403, content={"detail": "Forbidden: Invalid token"})
-
-        return await call_next(request)
 
 
 # Create the MCP server instance
@@ -53,10 +34,14 @@ mcp = FastMCP(
     port=settings.server_port,
     host=settings.server_host,
     log_level=settings.log_level,
+    token_verifier=AuthTokenVerifier(),
+        auth=AuthSettings(
+        # We will use a dummy issuer URL for simple tokens
+        issuer_url=AnyHttpUrl("https://local-auth"),
+        resource_server_url=AnyHttpUrl("http://localhost:3001"),
+        required_scopes=["user"],
+    ),
 )
-
-# Add the authentication middleware
-mcp.add_middleware(AuthMiddleware)
 
 
 @mcp.custom_route("/health", methods=["GET"]) 
@@ -65,14 +50,15 @@ async def health_check(request) -> Response:
 
 
 @mcp.tool(name="search_knowledge_base")
-def search_tool(query: str):
+def search_tool(query: str, max_results: int = 5):
     """
     Search the knowledge base for relevant documentation.
 
     args
     query(str): The search query string
+    max_results(int): Maximum number of results to return (default: 5)
     """
-    return search_product_docs_impl(query)
+    return search_product_docs_impl(query, max_results)
 
 
 @mcp.tool(name="create_ticket")
@@ -125,10 +111,30 @@ def send_response_tool(ticket_id: str, message: str, channel: str = "web_form"):
     return save_reply_impl(ticket_id, message, channel)
 
 
-def main():
-    # Initialize the database when the server starts
-    initialize_database()
+@mcp.tool(name="analyze_sentiment")
+def analyze_sentiment_tool(message_text: str):
+    """
+    Analyze the sentiment of a customer message.
 
+    args
+    message_text(str): The customer message text to analyze
+    """
+    return analyze_sentiment_impl(message_text)
+
+
+@mcp.tool(name="identify_customer")
+def identify_customer_tool(email: Optional[str] = None, phone: Optional[str] = None):
+    """
+    Identify or create a customer based on email or phone number.
+
+    args
+    email(str): Customer's email address (optional)
+    phone(str): Customer's phone number (optional)
+    """
+    return identify_customer_impl(email, phone)
+
+
+def main():
     import sys
     # Check if we should run in HTTP mode or stdio mode
     if len(sys.argv) > 1 and sys.argv[1] == "--http":

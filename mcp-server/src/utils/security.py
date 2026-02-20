@@ -1,7 +1,8 @@
 from functools import wraps
 from typing import Callable, Any
-from src.config import settings
+from mcp.server.auth.provider import AccessToken, TokenVerifier
 
+from src.config import settings
 
 def authenticate(func: Callable) -> Callable:
     """
@@ -26,6 +27,20 @@ def authenticate(func: Callable) -> Callable:
         return func(*args, **kwargs)
 
     return wrapper
+
+
+class AuthTokenVerifier(TokenVerifier):    
+    async def verify_token(self, token: str) -> AccessToken | None:
+        expected_token = settings.mcp_server_token
+        if expected_token is not None and token == expected_token:
+            return AccessToken(
+                token=token,
+                scopes=["user"],  # Grant required scopes
+                expires_at=None,  # None means it doesn't expire
+                client_id="mcp-client",  # Required: identifier for the client
+            )
+        
+        return None
 
 
 def verify_token(token: str) -> bool:

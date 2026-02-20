@@ -1,3 +1,10 @@
+---
+title: CloudStream CRM Brand Voice & Communication Guidelines
+category: communication_guidelines
+description: Brand persona, tone principles, channel-specific formatting, and communication standards
+tags: [brand-voice, communication, guidelines, tone, channels]
+---
+
 # CloudStream CRM: Brand Voice & Communication Guidelines
 
 ## 1. The Persona
