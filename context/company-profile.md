@@ -1,3 +1,10 @@
+---
+title: Company Profile - CloudStream CRM
+category: company_information
+description: Core identity, mission, target audience, and business operations of CloudStream CRM
+tags: [company, profile, mission, target-audience, operations]
+---
+
 # Company Profile: CloudStream CRM
 
 ## 1. Core Identity

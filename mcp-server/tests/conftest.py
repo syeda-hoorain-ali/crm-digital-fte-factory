@@ -1,3 +1,4 @@
+import os
 import pytest
 from collections.abc import AsyncGenerator
 from sqlmodel import create_engine, Session, SQLModel
@@ -12,10 +13,20 @@ from src.main import mcp
 
 @pytest.fixture(name="session")
 def session_fixture():
+    # Use PostgreSQL for tests to match production behavior
+
+    # Prioritize testing database URL, then fall back to general DATABASE_URL
+    database_url = os.getenv("TESTING_DATABASE_URL") or os.getenv("DATABASE_URL")
+
+    if not database_url:
+        raise ValueError("Either TESTING_DATABASE_URL or DATABASE_URL must be set for tests")
+
     engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+        database_url,
+        # Additional connection parameters for PostgreSQL
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True,
     )
     SQLModel.metadata.create_all(bind=engine)
     with Session(engine) as session:

@@ -63,7 +63,7 @@ CREATE TABLE conversations (
 CREATE TABLE product_docs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     content TEXT,
-    embedding vector(1536) -- Requires pgvector extension
+    embedding vector(384) -- Requires pgvector extension
 );
 
 ```

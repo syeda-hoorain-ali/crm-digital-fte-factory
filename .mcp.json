@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "crm-digital-fte": {
+      "type": "stdio",
+      "command": "/home/wsl-user/.local/bin/uv",
+      "args": [
+        "run",
+        "--frozen",
+        "--directory",
+        "mcp-server",
+        "--with",
+        "mcp[cli]",
+        "mcp",
+        "run",
+        "src/main.py"
+      ],
+      "env": {
+        "MCP_SERVER_TOKEN": "test-token"
+      }
+    }
+  }
+}

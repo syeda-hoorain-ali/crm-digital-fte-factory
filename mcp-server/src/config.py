@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     """Configuration settings for the MCP server"""
 
     # Database settings
-    database_url: str = "sqlite:///./mcp_server.db"
+    database_url: str
 
     # Authentication settings
     mcp_server_token: Optional[str] = None
@@ -22,17 +22,10 @@ class Settings(BaseSettings):
     # Environment
     environment: str = "development" # development, production, testing
     debug: bool = False
-    log_level: str = "INFO"  # Default value
+    log_level: Literal['DEBUG', 'INFO', 'ERROR'] = "INFO"  # Default value
 
     def model_post_init(self, __context):
         """Post-initialization hook to customize settings based on environment"""
-        if self.environment == "testing":
-            self.database_url = "sqlite:///./test.db"
-        elif self.environment == "production":
-            # In production, check if using SQLite and raise an error
-            if self.database_url.startswith("sqlite://"):
-                raise ValueError("SQLite database is not allowed in production environment. Please use a production-ready database like PostgreSQL.")
-
         # Set appropriate logging level based on debug and environment
         if self.debug:
             self.log_level = "DEBUG"

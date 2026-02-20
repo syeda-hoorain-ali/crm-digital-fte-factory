@@ -21,7 +21,7 @@ The backend provides the core intelligence and infrastructure for a 24/7 AI empl
 ### Core AI Agent Layer
 - **Agent Definitions** (`src/agent/core/agents.py`): Main Customer Success AI Agent and specialist agents
 - **Processing Logic** (`src/agent/core/runner.py`): Customer query processing and response generation
-- **Custom Tools** (`src/agent/tools/crm_tools.py`): CRM-specific tools for customer lookup, documentation search, etc.
+- **Custom Tools** (`src/agent/tools/`): CRM-specific tools for customer lookup, documentation search, etc.
 - **LLM Configuration** (`src/settings.py`): OpenAI/Gemini integration and configuration
 
 ### Channel Integration Layer
@@ -53,7 +53,6 @@ backend/
 │   │   │   ├── runner.py       # Query processing and demo runner
 │   │   │   └── main_agent.py   # Configuration setup
 │   │   ├── tools/              # Custom CRM tools
-│   │   │   └── crm_tools.py    # Customer lookup, ticket creation, etc.
 │   │   └── __init__.py
 │   ├── channels/               # Channel integration layer
 │   │   └── channel_handler.py  # Multi-channel handling logic

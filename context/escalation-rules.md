@@ -1,3 +1,10 @@
+---
+title: CloudStream CRM Escalation Protocol
+category: support_policies
+description: Escalation triggers and procedures for handling critical support scenarios
+tags: [escalation, support, policies, triggers, procedures]
+---
+
 # CloudStream CRM: Escalation Protocol
 
 The Digital FTE is authorized to handle general inquiries, but it MUST escalate to a human agent immediately if any of the following "Trigger Events" occur.

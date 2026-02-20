@@ -964,7 +964,7 @@ CREATE TABLE knowledge_base (
     title VARCHAR(500) NOT NULL,
     content TEXT NOT NULL,
     category VARCHAR(100),
-    embedding VECTOR(1536), -- For semantic search
+    embedding VECTOR(384), -- For semantic search
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
