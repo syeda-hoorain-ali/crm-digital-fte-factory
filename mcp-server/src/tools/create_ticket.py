@@ -57,16 +57,7 @@ def create_support_ticket_impl(customer_id: str, issue: str, priority: str = "no
             customer = session.exec(customer_statement).first()
 
             if not customer:
-                # Create a default customer if not found
-                customer = Customer(
-                    customer_id=customer_id,
-                    email=f"{customer_id}@example.com",
-                    plan_type="unknown",
-                    subscription_status="active",
-                    last_interaction=datetime.now().isoformat()
-                )
-                session.add(customer)
-                session.commit()
+                raise ValueError(f"Customer with ID {customer_id} not found. Please use identify_customer tool first to get the correct customer_id.")
 
             # Create the support ticket
             support_ticket = SupportTicket(
@@ -74,7 +65,7 @@ def create_support_ticket_impl(customer_id: str, issue: str, priority: str = "no
                 customer_id=customer_id,
                 channel=channel,
                 query=issue,
-                timestamp=datetime.now().isoformat(),
+                timestamp=datetime.now(),
                 escalated=False
             )
 

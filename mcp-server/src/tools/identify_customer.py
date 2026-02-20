@@ -4,7 +4,7 @@ import uuid
 from typing import Dict, Any, Optional
 from datetime import datetime
 from sqlmodel import Session, select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError
 from src.database.models import Customer
 from src.database.session import engine
 from src.utils.metrics import metrics_collector
@@ -85,7 +85,7 @@ def identify_customer_impl(email: Optional[str] = None, phone: Optional[str] = N
                     phone=phone,
                     plan_type="unknown",
                     subscription_status="active",
-                    last_interaction=datetime.now().isoformat()
+                    last_interaction=datetime.now()
                 )
 
                 try:
@@ -99,7 +99,7 @@ def identify_customer_impl(email: Optional[str] = None, phone: Optional[str] = N
                         "customer_id": new_customer.customer_id,
                         "is_new": True
                     }
-                except SQLAlchemyError as db_error:
+                except IntegrityError as db_error:
                     # Handle unique constraint violations gracefully
                     session.rollback()
 

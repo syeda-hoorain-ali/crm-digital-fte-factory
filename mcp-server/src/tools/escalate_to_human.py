@@ -63,7 +63,7 @@ def escalate_ticket_impl(ticket_id: str, reason: str, client_id: str = "default_
                 escalation_id=escalation_id,
                 ticket_id=ticket_id,
                 reason=reason,
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now()
             )
             session.add(escalation_record)
             session.commit()

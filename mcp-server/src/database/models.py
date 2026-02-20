@@ -34,7 +34,7 @@ class SupportTicket(SQLModel, table=True):
     customer_id: str = Field(index=True)
     channel: str  # Communication channel (gmail, whatsapp, web_form)
     query: str  # The original customer query or issue description
-    timestamp: str  # ISO format timestamp when ticket was created
+    timestamp: datetime  # Timestamp when ticket was created
     escalated: bool = False
     escalation_reason: Optional[str] = None
     created_at: datetime = Field(
@@ -56,7 +56,7 @@ class Customer(SQLModel, table=True):
     phone: Optional[str] = None  # Customer's phone number (may be empty for email-only customers)
     plan_type: str  # Subscription plan type (starter, pro, enterprise)
     subscription_status: str  # Current subscription status (active, inactive, suspended)
-    last_interaction: str  # Timestamp of last interaction
+    last_interaction: Optional[datetime] = None  # Timestamp of last interaction
     # Note: Support tickets are typically referenced separately, not stored as a list in the database
     # The relationship is maintained through foreign keys in the SupportTicket table
     created_at: datetime = Field(
@@ -95,7 +95,7 @@ class EscalationRecord(SQLModel, table=True):
     escalation_id: str = Field(default=None, primary_key=True)
     ticket_id: str = Field(index=True)  # Reference to the ticket being escalated
     reason: str  # Reason for the escalation
-    timestamp: str  # Time when escalation occurred
+    timestamp: datetime  # Time when escalation occurred
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         sa_column=Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
