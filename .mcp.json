@@ -13,10 +13,7 @@
         "mcp",
         "run",
         "src/main.py"
-      ],
-      "env": {
-        "MCP_SERVER_TOKEN": "test-token"
-      }
+      ]
     }
   }
 }

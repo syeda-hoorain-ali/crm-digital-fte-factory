@@ -1,0 +1,6 @@
+Ticket ID: TKT-192
+Customer: test_15602d0b@example.com
+Channel: web_form
+Timestamp: 2026-02-23T07:24:05.247953
+Reply:
+test message

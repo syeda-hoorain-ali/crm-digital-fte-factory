@@ -15,72 +15,39 @@ The Digital FTE can:
 - Answer customer questions using integrated tools and product documentation
 - Identify when to escalate to human specialists
 - Track all interactions with channel source metadata
-- Maintain conversation history and customer profiles across channels
+- Maintain conversation history and customer profiles
 - Format responses appropriately for each communication channel
-- Handle seamless handoffs to specialist agents (Billing, Technical Support, Sales, Senior Support)
-- Operate as a complete CRM system with PostgreSQL database
+- Analyze customer sentiment in real-time
+- Make intelligent escalation decisions based on multiple criteria
 
-## 📦 Complete System Architecture
+## 🏗️ Current Architecture
 
-### Backend Service (`backend/`)
-Complete backend implementation with:
-- OpenAI Agents framework for intelligent customer interactions
-- PostgreSQL database serving as the CRM system (customers, conversations, tickets, messages tables)
-- Kafka for message streaming and event processing
-- FastAPI for web APIs and webhook endpoints
-- Kubernetes deployment manifests
-- Channel integrations (Gmail API, Twilio for WhatsApp, Web Forms)
+This implementation uses a **file-based MCP (Model Context Protocol) server** architecture designed for local development and MVP testing:
 
-### Frontend Components
-- **Web Support Form**: Complete React/Next.js form with validation, submission, and status checking
-- Embeddable component for customer support requests
-- Channel-appropriate UI for different customer touchpoints
+- **MCP Server**: Exposes 7 tools for customer support operations (see [`mcp-server/README.md`](mcp-server/README.md))
+- **File Storage**: JSON tickets, Markdown knowledge base, Text file replies
+- **No Database Required**: All data in human-readable files
+- **Claude Code Integration**: Works seamlessly via stdio transport
+- **Skills-Based Agent**: 5 specialized skills for customer support workflows
 
-### Context and Data (`context/`)
-- Company profile and business context
-- Product documentation for agent knowledge
-- Sample tickets (50+ multi-channel customer inquiries)
-- Escalation rules and policies
-- Brand voice and communication guidelines
+### MCP Server
 
-### Infrastructure
-- PostgreSQL database schema (serving as the CRM system)
-- Apache Kafka for message streaming
-- Docker containers for deployment
-- Kubernetes manifests for orchestration
+The MCP server provides tools for:
+- Knowledge base search (TF-IDF)
+- Customer identification and history
+- Ticket creation and management
+- Escalation handling
+- Response delivery
+- Sentiment analysis
 
-## 🚀 Key Features
+### Claude Code Skills
 
-### Multi-Channel Support
-- **Gmail**: Formal email responses with proper greeting/signature
-- **WhatsApp**: Casual, concise responses with emojis
-- **Web Form**: Direct, functional responses
-
-### Specialist Agent Handoffs
-- **Billing Specialist**: Handles billing and payment-related questions
-- **Technical Support**: Handles technical issues and troubleshooting
-- **Sales Specialist**: Handles upgrade and sales-related questions
-- **Senior Support Agent**: Handles urgent escalations and sensitive customer issues
-
-### Intelligent Tool Usage
-- Customer information lookup across channels
-- Product documentation search and retrieval
-- Support ticket creation and management
-- Automatic escalation detection and routing
-- Response archival and reporting
-
-### Memory & State Management
-- Customer profiles with plan information
-- Conversation history across all channels
-- Persistent session storage with PostgreSQL
-- Cross-channel continuity and context awareness
-- Sentiment tracking and churn risk assessment
-
-### Omnichannel Continuity
-- Customer identification across channels
-- Conversation history preservation
-- Seamless transitions between communication methods
-- Unified customer experience
+Five specialized skills orchestrate the customer support workflow:
+1. **sentiment-analysis-skill** - Mandatory sentiment analysis for every message
+2. **customer-identification** - Customer lookup and history loading
+3. **knowledge-retrieval-skill** - Product documentation search
+4. **escalation-decision** - Multi-criteria escalation logic
+5. **channel-adaptation** - Format responses for Gmail/WhatsApp/Web Form
 
 ## 📁 Project Structure
 
@@ -88,19 +55,14 @@ Complete backend implementation with:
 crm-digital-fte-factory/
 ├── backend/                    # Backend service (Python, FastAPI, PostgreSQL)
 ├── frontend/                 # Frontend components (React/Next.js)
-├── context/                  # Contextual information and docs
-│   ├── company-profile.md    # Business context
-│   ├── product-docs.md       # Product documentation
-│   ├── sample-tickets.json   # Multi-channel sample tickets
-│   ├── escalation-rules.md   # Escalation policies
-│   └── brand-voice.md        # Communication guidelines
-├── kafka/                    # Kafka configuration and schemas
-├── docs/                     # Technical documentation
-├── specs/                    # System specifications
-├── replies/                  # Saved agent responses
-├── history/                  # Historical records
-├── infrastructure/           # Infrastructure as code
-└── README.md                 # This file
+├── mcp-server/                    # MCP server implementation
+├── charts/                        # Kubernetes Infrastructure
+├── .claude/
+│   ├── skills/                    #  Claude Code skills
+│   └── CLAUDE.md                  # Project instructions
+├── history/                       # Historical records
+├── .mcp.json                      # Claude Code MCP server configuration
+└── README.md                      # This file
 ```
 
 ## 🛠️ Technologies Stack
@@ -123,26 +85,78 @@ crm-digital-fte-factory/
 - **Kubernetes**: Orchestration and scaling
 - **uv**: Python dependency management
 
-## 🚀 Running the Application
+## 🚀 Getting Started
 
-### Backend Setup
+### Prerequisites
+
+- Python 3.11+
+- UV package manager
+- Claude Code (for skills integration)
+
+### Quick Start
+
+1. **Install dependencies:**
 ```bash
-cd backend
+cd mcp-server
 uv sync
-uv run main
 ```
 
-### Frontend Setup
+2. **Run tests:**
 ```bash
-cd frontend
-npm install
-npm run dev
+cd mcp-server
+uv run pytest
 ```
 
-## 🔐 Configuration
+All 67 tests should pass.
 
-The application uses environment variables managed through `.env` file. Key settings include:
-- `GEMINI_API_KEY`: Your Google Gemini API key (required)
+3. **Connect with Claude Code:**
+
+The MCP server is configured in `.mcp.json` and connects automatically when Claude Code starts.
+
+**For detailed setup instructions, see [`mcp-server/README.md`](mcp-server/README.md)**
+
+## 🎯 Key Features
+
+### Multi-Channel Support
+- **Gmail**: Formal email responses with proper structure
+- **WhatsApp**: Casual, concise responses (under 60 words)
+- **Web Form**: Direct, functional responses with markdown
+
+### Intelligent Escalation
+Evaluates 16 criteria including sentiment floor, negative trends, legal threats, security breaches, system outages, and churn risk.
+
+### Sentiment Analysis
+Every customer message is analyzed with VADER sentiment analysis. Scores below 0.3 trigger automatic escalation evaluation.
+
+### File-Based Storage
+- No database setup required
+- Human-readable formats (JSON, Markdown, Text)
+- Easy debugging and version control
+- Suitable for local MVP development
+
+### Comprehensive Testing
+67 tests covering all tools, workflows, and edge cases with 100% pass rate.
+
+## 🔄 Agent Workflow
+
+```
+Customer Message Received
+    ↓
+[1] sentiment-analysis-skill (MANDATORY)
+    ↓
+[2] customer-identification (load history)
+    ↓
+[3] knowledge-retrieval-skill (search docs)
+    ↓
+[4] Generate Response
+    ↓
+[5] escalation-decision (evaluate criteria)
+    ↓
+    ├─ Escalate? → escalate_to_human tool
+    └─ No → channel-adaptation skill
+              ↓
+         [6] send_response tool
+```
 
 ## 🎯 Business Value
 
@@ -153,15 +167,67 @@ The application uses environment variables managed through `.env` file. Key sett
 
 ### Operational Excellence
 - **Availability**: 24/7 operation without breaks
-- **Consistency**: Uniform response quality
-- **Scalability**: Handles volume spikes automatically
-- **Analytics**: Real-time insights and reporting
+- **Consistency**: Uniform response quality across channels
+- **Scalability**: File-based architecture scales with content
+- **Maintainability**: Human-readable data formats
 
 ### Customer Experience
-- **Multi-channel**: Seamless experience across communication channels
-- **Speed**: Instant responses to common inquiries
-- **Continuity**: Context-aware conversations across channels
-- **Specialization**: Intelligent routing to appropriate specialists
+- **Multi-channel**: Seamless experience across Gmail, WhatsApp, Web Form
+- **Speed**: Instant responses using TF-IDF search
+- **Intelligence**: Sentiment-aware escalation decisions
+- **Continuity**: Customer history tracked across interactions
+
+## 📚 Documentation
+
+- **MCP Server**: [`mcp-server/README.md`](mcp-server/README.md) - Setup, API reference, testing
+- **Skills**: `.claude/skills/*/README.md` - Individual skill documentation
+- **Architecture**: `history/adr/` - Architecture Decision Records
+- **Development History**: `history/prompts/` - Prompt History Records
+
+## 🚧 Development Approach
+
+This project follows **Spec-Driven Development (SDD)** methodology with:
+- **PHRs** (Prompt History Records) tracking all development sessions
+- **ADRs** (Architecture Decision Records) documenting significant decisions
+- **Comprehensive testing** with 67 tests maintaining 100% pass rate
+- **Human-readable data** for easy debugging and auditing
+
+## 📈 Current Status & Roadmap
+
+### ✅ Current: Local MVP
+- File-based MCP server with 7 tools
+- 5 Claude Code skills for customer support
+- Multi-channel support (Gmail, WhatsApp, Web Form)
+- Sentiment analysis and intelligent escalation
+- 67 tests passing
+
+### 🔜 Next Steps
+- Add more knowledge base content
+- Implement actual channel integrations (Gmail API, Twilio)
+- Add web form frontend
+- Deploy to production environment
+- Optional: Migrate to database for scale
+
+### 🚀 Future Enhancements
+- Advanced analytics and reporting
+- Multi-language support
+- Voice channel integration
+- Machine learning for improved escalation
+- Integration with existing CRM systems
+
+## 🤝 Contributing
+
+When adding new features:
+1. Create a spec in `specs/<feature-name>/`
+2. Implement with tests (maintain 100% pass rate)
+3. Update documentation
+4. Create PHR for the session
+
+## 📝 License
+
+See LICENSE file for details.
+
+---
 
 ## 🚧 Roadmap to Production
 
@@ -186,4 +252,5 @@ The application uses environment variables managed through `.env` file. Key sett
 - ⚡ Advanced AI capabilities
 
 ---
-Built with the **Agent Maturity Model** methodology for creating production-grade AI employees.
+
+> Built with the **Agent Maturity Model** methodology for creating production-grade AI employees.
