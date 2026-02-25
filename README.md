@@ -117,6 +117,8 @@ The MCP server is configured in `.mcp.json` and connects automatically when Clau
 
 ## 🎯 Key Features
 
+gh api repos/panaversity/agentfactory/contents/apps/learn-app/docs/05-Building-Custom-Agents --jq '.[] | {name: .name, path: .path, type: .type, download_url: .download_url, size: .size}'
+
 ### Multi-Channel Support
 - **Gmail**: Formal email responses with proper structure
 - **WhatsApp**: Casual, concise responses (under 60 words)

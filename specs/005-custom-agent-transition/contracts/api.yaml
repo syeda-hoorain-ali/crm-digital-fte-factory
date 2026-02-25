@@ -1,0 +1,474 @@
+openapi: 3.0.3
+info:
+  title: Customer Success Agent API
+  description: |
+    Production API for Customer Success Agent powered by OpenAI Agents SDK.
+
+    This API provides endpoints for processing customer inquiries through an AI agent
+    that performs sentiment analysis, customer identification, knowledge base search,
+    escalation decision-making, and channel-specific response formatting.
+
+    **Key Features:**
+    - Automated customer support workflow
+    - Cross-channel customer unification (email, phone, WhatsApp)
+    - Conversation lifecycle tracking
+    - Semantic search with pgvector
+    - Sentiment analysis with VADER
+    - Intelligent escalation routing
+    - Multi-channel response formatting
+    - Full observability (tokens, latency, tool calls)
+  version: 1.0.0
+  contact:
+    name: CRM Digital FTE Factory
+    url: https://github.com/your-org/crm-digital-fte-factory
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.example.com
+    description: Production server
+
+tags:
+  - name: health
+    description: Health check and system status
+  - name: agent
+    description: Agent processing and conversation management
+
+paths:
+  /health:
+    get:
+      tags:
+        - health
+      summary: Health check
+      description: |
+        Verify API health and database connectivity.
+
+        Returns healthy status if:
+        - FastAPI application is running
+        - Database connection is active
+        - All required environment variables are set
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: healthy
+                database: connected
+                timestamp: '2024-02-24T10:30:00Z'
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: Database connection failed
+
+  /agent/process:
+    post:
+      tags:
+        - agent
+      summary: Process customer inquiry
+      description: |
+        Process a customer inquiry through the Customer Success Agent.
+
+        **Workflow:**
+        1. Analyze sentiment of customer message
+        2. Identify or create customer record (with cross-channel matching)
+        3. Create or continue conversation
+        4. Search knowledge base for relevant articles
+        5. Make escalation decision
+        6. Format response for specified channel
+        7. Store message with observability data (tokens, latency, tool calls)
+
+        **Cross-Channel Unification:**
+        - Same customer across email/phone/WhatsApp automatically unified
+        - CustomerIdentifier table enables cross-channel matching
+        - Conversation history spans all channels
+
+        **Agent Tools Used:**
+        - analyze_sentiment
+        - identify_customer (with CustomerIdentifier lookup)
+        - create_ticket (creates conversation if needed)
+        - search_knowledge_base
+        - escalate_to_human (updates conversation.escalated_to)
+        - send_response (stores message with role="agent")
+      operationId: processInquiry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessInquiryRequest'
+            examples:
+              basic:
+                summary: Basic inquiry
+                value:
+                  message: "How do I reset my password?"
+                  customer_email: "customer@example.com"
+                  channel: "api"
+              with_phone:
+                summary: Inquiry with phone
+                value:
+                  message: "I'm having trouble logging in and I'm very frustrated!"
+                  customer_email: "customer@example.com"
+                  customer_phone: "+1234567890"
+                  channel: "whatsapp"
+              cross_channel:
+                summary: Cross-channel inquiry (same customer, different identifier)
+                value:
+                  message: "Following up on my previous issue"
+                  customer_phone: "+1234567890"
+                  channel: "whatsapp"
+      responses:
+        '200':
+          description: Inquiry processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessInquiryResponse'
+              examples:
+                success:
+                  summary: Successful processing
+                  value:
+                    response: "I understand you're having trouble logging in. Here's how to reset your password: 1) Go to the login page, 2) Click 'Forgot Password', 3) Enter your email address, 4) Check your email for reset link. If you continue to have issues, I've escalated this to our support team."
+                    conversation_id: "550e8400-e29b-41d4-a716-446655440000"
+                    customer_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                    escalated: true
+                    knowledge_articles: ["Password Reset Guide", "Login Troubleshooting"]
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "At least one of customer_email or customer_phone must be provided"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Agent processing failed: OpenAI API timeout"
+
+  /agent/history/{conversation_id}:
+    get:
+      tags:
+        - agent
+      summary: Get conversation history
+      description: |
+        Retrieve the complete conversation history for a conversation.
+
+        Returns all messages (inbound and outbound) in chronological order
+        with sentiment scores, timestamps, and observability data.
+
+        **Conversation-Centric Design:**
+        - Conversations track the full lifecycle of customer interactions
+        - Messages belong to conversations (not tickets)
+        - Multiple tickets can be linked to a single conversation
+        - Cross-channel messages unified in conversation history
+      operationId: getConversationHistory
+      parameters:
+        - name: conversation_id
+          in: path
+          required: true
+          description: Conversation UUID
+          schema:
+            type: string
+            format: uuid
+            example: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        '200':
+          description: Conversation history retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationHistoryResponse'
+              example:
+                conversation_id: "550e8400-e29b-41d4-a716-446655440000"
+                customer_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                customer_email: "customer@example.com"
+                customer_phone: "+1234567890"
+                initial_channel: "email"
+                status: "resolved"
+                started_at: "2024-02-24T10:00:00Z"
+                ended_at: "2024-02-24T10:15:00Z"
+                messages:
+                  - id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                    channel: "email"
+                    direction: "inbound"
+                    role: "customer"
+                    content: "How do I reset my password?"
+                    timestamp: "2024-02-24T10:00:00Z"
+                  - id: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+                    channel: "email"
+                    direction: "outbound"
+                    role: "agent"
+                    content: "I can help you reset your password. Here are the steps..."
+                    tokens_used: 150
+                    latency_ms: 1250
+                    timestamp: "2024-02-24T10:00:05Z"
+                  - id: "c3d4e5f6-a7b8-9012-cdef-123456789012"
+                    channel: "whatsapp"
+                    direction: "inbound"
+                    role: "customer"
+                    content: "Still having issues"
+                    timestamp: "2024-02-24T10:10:00Z"
+        '404':
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Conversation 550e8400-e29b-41d4-a716-446655440000 not found"
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - database
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          description: Overall service health status
+        database:
+          type: string
+          enum: [connected, disconnected]
+          description: Database connection status
+        timestamp:
+          type: string
+          format: date-time
+          description: Health check timestamp (ISO 8601)
+
+    ProcessInquiryRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: Customer inquiry message
+          example: "How do I reset my password?"
+        customer_email:
+          type: string
+          format: email
+          description: Customer email address
+          example: "customer@example.com"
+        customer_phone:
+          type: string
+          pattern: '^\+?[1-9]\d{1,14}$'
+          description: Customer phone number (E.164 format recommended)
+          example: "+1234567890"
+        channel:
+          type: string
+          enum: [email, whatsapp, web_form, api]
+          default: api
+          description: Communication channel for response formatting
+      oneOf:
+        - required: [customer_email]
+        - required: [customer_phone]
+
+    ProcessInquiryResponse:
+      type: object
+      required:
+        - response
+        - conversation_id
+        - customer_id
+      properties:
+        response:
+          type: string
+          description: Agent-generated response formatted for specified channel
+          example: "I can help you reset your password. Here are the steps..."
+        conversation_id:
+          type: string
+          format: uuid
+          description: Unique conversation identifier (also serves as session_id for memory persistence)
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        customer_id:
+          type: string
+          format: uuid
+          description: Unified customer identifier (across all channels)
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        escalated:
+          type: boolean
+          description: Whether the inquiry was escalated to human support
+          example: true
+        escalation_reason:
+          type: string
+          nullable: true
+          description: Reason for escalation (if escalated)
+          example: "Negative sentiment trend detected"
+        knowledge_articles:
+          type: array
+          items:
+            type: string
+          description: Titles of knowledge base articles retrieved
+          example: ["Password Reset Guide", "Login Troubleshooting"]
+        observability:
+          type: object
+          description: Observability metadata for monitoring and debugging
+          properties:
+            tokens_used:
+              type: integer
+              description: Total tokens consumed (input + output)
+              example: 450
+            latency_ms:
+              type: integer
+              description: Total processing latency in milliseconds
+              example: 2350
+            tool_calls:
+              type: array
+              items:
+                type: string
+              description: List of tools called during processing
+              example: ["analyze_sentiment", "identify_customer", "search_knowledge_base", "send_response"]
+            trace_id:
+              type: string
+              description: OpenAI trace ID for debugging in platform.openai.com/traces
+              example: "trace_abc123xyz"
+
+    ConversationHistoryResponse:
+      type: object
+      required:
+        - conversation_id
+        - customer_id
+        - initial_channel
+        - status
+        - started_at
+        - messages
+      properties:
+        conversation_id:
+          type: string
+          format: uuid
+          description: Conversation identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        customer_id:
+          type: string
+          format: uuid
+          description: Unified customer identifier
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        customer_email:
+          type: string
+          format: email
+          nullable: true
+          description: Customer email address
+          example: "customer@example.com"
+        customer_phone:
+          type: string
+          nullable: true
+          description: Customer phone number
+          example: "+1234567890"
+        initial_channel:
+          type: string
+          enum: [email, whatsapp, web_form, api]
+          description: Channel where conversation started
+          example: "email"
+        status:
+          type: string
+          enum: [active, resolved, escalated, closed]
+          description: Current conversation status
+          example: "resolved"
+        started_at:
+          type: string
+          format: date-time
+          description: Conversation start timestamp (ISO 8601)
+          example: "2024-02-24T10:00:00Z"
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Conversation end timestamp (ISO 8601)
+          example: "2024-02-24T10:15:00Z"
+        escalated_to:
+          type: string
+          nullable: true
+          description: Who/where conversation was escalated to
+          example: "support-team@example.com"
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+          description: Conversation messages in chronological order
+
+    Message:
+      type: object
+      required:
+        - id
+        - channel
+        - direction
+        - role
+        - content
+        - timestamp
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Message identifier
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        channel:
+          type: string
+          enum: [email, whatsapp, web_form, api]
+          description: Communication channel
+          example: "email"
+        direction:
+          type: string
+          enum: [inbound, outbound]
+          description: Message direction
+          example: "inbound"
+        role:
+          type: string
+          enum: [customer, agent, system]
+          description: Message role
+          example: "customer"
+        content:
+          type: string
+          description: Message content
+          example: "How do I reset my password?"
+        tokens_used:
+          type: integer
+          nullable: true
+          description: Number of tokens used (for agent messages, cost tracking)
+          example: 150
+        latency_ms:
+          type: integer
+          nullable: true
+          description: Processing latency in milliseconds (for agent messages)
+          example: 1250
+        channel_message_id:
+          type: string
+          nullable: true
+          description: External message ID (Gmail message ID, Twilio SID, etc.)
+          example: "msg_abc123xyz"
+        delivery_status:
+          type: string
+          enum: [pending, sent, delivered, failed]
+          description: Message delivery status
+          example: "delivered"
+        timestamp:
+          type: string
+          format: date-time
+          description: Message timestamp (ISO 8601)
+          example: "2024-02-24T10:00:00Z"
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          description: Error message
+          example: "Database connection failed"
