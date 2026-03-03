@@ -90,6 +90,29 @@ class Settings(BaseSettings):
         ge=0.0,
         le=2.0
     )
+    agent_cost_per_million_tokens: float = Field(
+        default=6.25,
+        description="Cost per million tokens in USD for agent model",
+        ge=0.0
+    )
+
+    # Escalation Configuration
+    escalation_email_low: str = Field(
+        default="support-tier1@cloudstream.com",
+        description="Email for low priority escalations"
+    )
+    escalation_email_medium: str = Field(
+        default="support-tier2@cloudstream.com",
+        description="Email for medium priority escalations"
+    )
+    escalation_email_high: str = Field(
+        default="support-senior@cloudstream.com",
+        description="Email for high priority escalations"
+    )
+    escalation_email_critical: str = Field(
+        default="support-vip@cloudstream.com",
+        description="Email for critical priority escalations"
+    )
 
     # Database Connection Pool
     db_pool_size: int = Field(

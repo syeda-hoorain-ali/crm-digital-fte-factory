@@ -85,7 +85,6 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(),
                type_=sa.DateTime(timezone=True),
                existing_nullable=False)
-    op.drop_constraint(op.f('uq_identifier_type_value'), 'customer_identifiers', type_='unique')
     op.add_column('customers', sa.Column('metadata', postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'::jsonb"), nullable=False))
     op.alter_column('customers', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
@@ -105,7 +104,6 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(),
                type_=sa.DateTime(timezone=True),
                existing_nullable=False)
-    op.drop_index(op.f('knowledge_base_embedding_idx'), table_name='knowledge_base', postgresql_ops={'embedding': 'vector_cosine_ops'}, postgresql_using='hnsw')
     op.alter_column('messages', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
                type_=sa.DateTime(timezone=True),
@@ -152,7 +150,6 @@ def downgrade() -> None:
                existing_type=sa.DateTime(timezone=True),
                type_=postgresql.TIMESTAMP(),
                existing_nullable=False)
-    op.create_index(op.f('knowledge_base_embedding_idx'), 'knowledge_base', ['embedding'], unique=False, postgresql_ops={'embedding': 'vector_cosine_ops'}, postgresql_using='hnsw')
     op.alter_column('knowledge_base', 'updated_at',
                existing_type=sa.DateTime(timezone=True),
                type_=postgresql.TIMESTAMP(),
@@ -172,7 +169,6 @@ def downgrade() -> None:
                type_=postgresql.TIMESTAMP(),
                existing_nullable=False)
     op.drop_column('customers', 'metadata')
-    op.create_unique_constraint(op.f('uq_identifier_type_value'), 'customer_identifiers', ['identifier_type', 'identifier_value'], postgresql_nulls_not_distinct=False)
     op.alter_column('customer_identifiers', 'updated_at',
                existing_type=sa.DateTime(timezone=True),
                type_=postgresql.TIMESTAMP(),

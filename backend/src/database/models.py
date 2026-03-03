@@ -83,7 +83,7 @@ class Customer(SQLModel, table=True):
     email: str | None = Field(default=None, unique=True, index=True, max_length=255)
     phone: str | None = Field(default=None, index=True, max_length=50)
     name: str | None = Field(default=None, max_length=255)
-    meta_data: dict = Field(
+    metadata: dict = Field(
         default_factory=dict, sa_column=Column(
         "metadata", JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     )
@@ -146,8 +146,8 @@ class Conversation(SQLModel, table=True):
     sentiment_score: float | None = Field(default=None, ge=-1.0, le=1.0)
     resolution_type: str | None = Field(default=None, max_length=50)
     escalated_to: str | None = Field(default=None, max_length=255)
-    meta_data: dict = Field(
-        default_factory=dict, 
+    metadata: dict = Field(
+        default_factory=dict,
         sa_column=Column("metadata", JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     )
     created_at: datetime = Field(
@@ -230,7 +230,7 @@ class KnowledgeBase(SQLModel, table=True):
     content: str = Field(min_length=1)
     category: str | None = Field(default=None, max_length=100, index=True)
     embedding: list[float] = Field(sa_column=Column(Vector(384)))
-    meta_data: dict = Field(
+    metadata: dict = Field(
         default_factory=dict, sa_column=Column(
         "metadata", JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     )

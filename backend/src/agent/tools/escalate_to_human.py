@@ -5,6 +5,7 @@ from uuid import UUID
 from datetime import datetime, timezone
 from agents import function_tool, RunContextWrapper
 
+from src.config import settings
 from src.database.models import ConversationStatus, Priority
 from src.database.queries import (
     get_conversation,
@@ -329,15 +330,15 @@ async def escalate_to_human(
         if detected_priority.value in ["high", "critical"]:
             priority_enum = detected_priority
 
-        # Determine escalation routing based on priority
+        # Determine escalation routing based on priority (from configuration)
         escalation_routing = {
-            Priority.LOW: "support-tier1@cloudstream.com",
-            Priority.MEDIUM: "support-tier2@cloudstream.com",
-            Priority.HIGH: "support-senior@cloudstream.com",
-            Priority.CRITICAL: "support-vip@cloudstream.com",
+            Priority.LOW: settings.escalation_email_low,
+            Priority.MEDIUM: settings.escalation_email_medium,
+            Priority.HIGH: settings.escalation_email_high,
+            Priority.CRITICAL: settings.escalation_email_critical,
         }
 
-        escalated_to = escalation_routing.get(priority_enum, "support-tier2@cloudstream.com")
+        escalated_to = escalation_routing.get(priority_enum, settings.escalation_email_medium)
 
         # Update conversation status to ESCALATED (T063)
         conversation.escalated_to = escalated_to

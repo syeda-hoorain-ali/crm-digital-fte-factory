@@ -270,8 +270,8 @@ class RunHooks(BaseRunHooks):
         Returns:
             float: Estimated cost in USD
         """
-        # Simplified cost calculation (average of input/output)
-        cost_per_million_tokens = 6.25
+        # Get cost from configuration for maintainability
+        cost_per_million_tokens = settings.agent_cost_per_million_tokens
         estimated_cost = (tokens_used / 1_000_000) * cost_per_million_tokens
 
         return round(estimated_cost, 6)  # Round to 6 decimal places

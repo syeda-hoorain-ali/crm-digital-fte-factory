@@ -300,11 +300,20 @@ class TestPostgresSessionPersistence:
         pg_session = PostgresSession(db_session, conversation.id, Channel.API)
         items = await pg_session.get_items()
 
-        # Verify tool_calls are included
-        assert len(items) == 1
+        # Verify tool_calls are reconstructed as separate function_call_output items
+        # The implementation appends function_call_output items after the assistant message
+        assert len(items) == 3  # 1 assistant message + 2 function_call_output items
         assert items[0].get("role") == "assistant"
-        assert "tool_calls" in items[0]
-        assert items[0].get("tool_calls") == tool_calls
+        assert items[0].get("content") == "Let me identify you"
+
+        # Verify function_call_output items
+        assert items[1].get("type") == "function_call_output"
+        assert items[1].get("call_id") == "call_123"
+        assert items[1].get("output") == "Customer identified"
+
+        assert items[2].get("type") == "function_call_output"
+        assert items[2].get("call_id") == "call_456"
+        assert items[2].get("output") == "History retrieved"
 
     @pytest.mark.asyncio
     async def test_session_handles_empty_conversation(
