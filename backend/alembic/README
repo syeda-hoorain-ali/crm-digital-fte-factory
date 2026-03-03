@@ -1,1 +1,4 @@
 Generic single-database configuration with an async dbapi.
+
+alembic revision --autogenerate -m "Initial schema with all 8 tables and pgvector support"
+alembic upgrade head

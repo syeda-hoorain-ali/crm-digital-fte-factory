@@ -29,9 +29,9 @@ This project uses web app structure:
 
 **Purpose**: Project initialization and dependency installation
 
-- [ ] T001 Install all Python dependencies using UV in backend/pyproject.toml
-- [ ] T002 [P] Create .env.example template in backend/.env.example with all required environment variables
-- [ ] T003 [P] Create config.py with Pydantic Settings in backend/src/config.py
+- [x] T001 Install all Python dependencies using UV in backend/pyproject.toml
+- [x] T002 [P] Create .env.example template in backend/.env.example with all required environment variables
+- [x] T003 [P] Create config.py with Pydantic Settings in backend/src/config.py
 
 ---
 
@@ -41,39 +41,39 @@ This project uses web app structure:
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Create all enum types (Priority, Channel, TicketStatus, ConversationStatus, MessageDirection, MessageRole, DeliveryStatus, IdentifierType) in backend/src/database/models.py
-- [ ] T005 Create Customer model with UUID PK and name field in backend/src/database/models.py
-- [ ] T006 [P] Create CustomerIdentifier model for cross-channel matching in backend/src/database/models.py
-- [ ] T007 [P] Create Conversation model with lifecycle tracking in backend/src/database/models.py
-- [ ] T008 [P] Create Message model with conversation_id FK and observability fields (role, tokens_used, latency_ms, tool_calls, channel_message_id) in backend/src/database/models.py
-- [ ] T009 [P] Create Ticket model with conversation_id FK and resolution tracking in backend/src/database/models.py
-- [ ] T010 [P] Create KnowledgeBase model with UUID PK and pgvector support in backend/src/database/models.py
-- [ ] T011 [P] Create ChannelConfig model for multi-channel configuration in backend/src/database/models.py
-- [ ] T012 [P] Create AgentMetric model for performance tracking in backend/src/database/models.py
-- [ ] T013 Create async database engine with connection pooling in backend/src/database/connection.py
-- [ ] T014 Create async session management with context manager in backend/src/database/connection.py
-- [ ] T015 Add connection retry logic with exponential backoff for database connection failures in backend/src/database/connection.py
-- [ ] T016 Add row-level locking for concurrent customer record updates in backend/src/database/queries.py
-- [ ] T017 Initialize Alembic with async template in backend/alembic/
-- [ ] T018 Configure Alembic env.py to import all SQLModel models in backend/alembic/env.py
-- [ ] T019 Generate initial migration with pgvector and uuid-ossp extensions and all 8 tables in backend/alembic/versions/
-- [ ] T020 Create CRUD operations for Customer in backend/src/database/queries.py
-- [ ] T021 [P] Create CRUD operations for CustomerIdentifier with cross-channel lookup in backend/src/database/queries.py
-- [ ] T022 [P] Create CRUD operations for Conversation with lifecycle management in backend/src/database/queries.py
-- [ ] T023 [P] Create CRUD operations for Message with conversation history retrieval in backend/src/database/queries.py
-- [ ] T024 [P] Create CRUD operations for Ticket with conversation linking in backend/src/database/queries.py
-- [ ] T025 [P] Create CRUD operations for KnowledgeBase with vector search in backend/src/database/queries.py
-- [ ] T026 [P] Create CRUD operations for ChannelConfig in backend/src/database/queries.py
-- [ ] T027 [P] Create CRUD operations for AgentMetric in backend/src/database/queries.py
-- [ ] T028 Implement custom PostgreSQL session class following SessionABC protocol in backend/src/agent/session.py
-- [ ] T029 Implement get_items() method to query Messages by conversation_id and transform to EasyInputMessageParam in backend/src/agent/session.py
-- [ ] T030 Implement add_items() method to insert Messages from EasyInputMessageParam items in backend/src/agent/session.py
-- [ ] T031 Implement pop_item() method to delete most recent Message by conversation_id in backend/src/agent/session.py
-- [ ] T032 Implement clear_session() as no-op (pass) to preserve message data in backend/src/agent/session.py
-- [ ] T033 Implement RunHooks class with lifecycle methods (on_agent_start, on_agent_end, on_tool_start, on_tool_end, on_handoff) in backend/src/agent/hooks.py
-- [ ] T034 Add structured JSON logging with timestamps and correlation IDs in RunHooks methods in backend/src/agent/hooks.py
-- [ ] T035 Add token usage extraction from result.raw_responses in RunHooks.on_agent_end in backend/src/agent/hooks.py
-- [ ] T036 Add AgentMetric population logic in RunHooks.on_agent_end (tokens_used, latency_ms, tool_call_count, estimated_cost) in backend/src/agent/hooks.py
+- [x] T004 Create all enum types (Priority, Channel, TicketStatus, ConversationStatus, MessageDirection, MessageRole, DeliveryStatus, IdentifierType) in backend/src/database/models.py
+- [x] T005 Create Customer model with UUID PK and name field in backend/src/database/models.py
+- [x] T006 [P] Create CustomerIdentifier model for cross-channel matching in backend/src/database/models.py
+- [x] T007 [P] Create Conversation model with lifecycle tracking in backend/src/database/models.py
+- [x] T008 [P] Create Message model with conversation_id FK and observability fields (role, tokens_used, latency_ms, tool_calls, channel_message_id) in backend/src/database/models.py
+- [x] T009 [P] Create Ticket model with conversation_id FK and resolution tracking in backend/src/database/models.py
+- [x] T010 [P] Create KnowledgeBase model with UUID PK and pgvector support in backend/src/database/models.py
+- [x] T011 [P] Create ChannelConfig model for multi-channel configuration in backend/src/database/models.py
+- [x] T012 [P] Create AgentMetric model for performance tracking in backend/src/database/models.py
+- [x] T013 Create async database engine with connection pooling in backend/src/database/connection.py
+- [x] T014 Create async session management with context manager in backend/src/database/connection.py
+- [x] T015 Add connection retry logic with exponential backoff for database connection failures in backend/src/database/connection.py
+- [x] T016 Add row-level locking for concurrent customer record updates in backend/src/database/queries.py
+- [x] T017 Initialize Alembic with async template in backend/alembic/
+- [x] T018 Configure Alembic env.py to import all SQLModel models in backend/alembic/env.py
+- [x] T019 Generate initial migration with pgvector and uuid-ossp extensions and all 8 tables in backend/alembic/versions/
+- [x] T020 Create CRUD operations for Customer in backend/src/database/queries.py
+- [x] T021 [P] Create CRUD operations for CustomerIdentifier with cross-channel lookup in backend/src/database/queries.py
+- [x] T022 [P] Create CRUD operations for Conversation with lifecycle management in backend/src/database/queries.py
+- [x] T023 [P] Create CRUD operations for Message with conversation history retrieval in backend/src/database/queries.py
+- [x] T024 [P] Create CRUD operations for Ticket with conversation linking in backend/src/database/queries.py
+- [x] T025 [P] Create CRUD operations for KnowledgeBase with vector search in backend/src/database/queries.py
+- [x] T026 [P] Create CRUD operations for ChannelConfig in backend/src/database/queries.py
+- [x] T027 [P] Create CRUD operations for AgentMetric in backend/src/database/queries.py
+- [x] T028 Implement custom PostgreSQL session class following SessionABC protocol in backend/src/agent/session.py
+- [x] T029 Implement get_items() method to query Messages by conversation_id and transform to EasyInputMessageParam in backend/src/agent/session.py
+- [x] T030 Implement add_items() method to insert Messages from EasyInputMessageParam items in backend/src/agent/session.py
+- [x] T031 Implement pop_item() method to delete most recent Message by conversation_id in backend/src/agent/session.py
+- [x] T032 Implement clear_session() as no-op (pass) to preserve message data in backend/src/agent/session.py
+- [x] T033 Implement RunHooks class with lifecycle methods (on_agent_start, on_agent_end, on_tool_start, on_tool_end, on_handoff) in backend/src/agent/hooks.py
+- [x] T034 Add structured JSON logging with timestamps and correlation IDs in RunHooks methods in backend/src/agent/hooks.py
+- [x] T035 Add token usage extraction from context.usage in RunHooks.on_agent_end in backend/src/agent/hooks.py
+- [x] T036 Add AgentMetric population logic in RunHooks.on_agent_end (tokens_used, latency_ms, tool_call_count, estimated_cost) in backend/src/agent/hooks.py
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -87,18 +87,18 @@ This project uses web app structure:
 
 ### Implementation for User Story 1
 
-- [ ] T037 [US1] Create knowledge base migration script with FastEmbed integration in backend/scripts/migrate_knowledge_base.py
-- [ ] T038 [US1] Test knowledge base migration script with sample markdown files from mcp-server/context/
-- [ ] T039 [US1] Create CustomerSuccessContext Pydantic model with conversation tracking fields in backend/src/agent/customer_success_agent.py
-- [ ] T040 [P] [US1] Create FastAPI application with lifespan events in backend/src/main.py
-- [ ] T041 [P] [US1] Implement GET /health endpoint with database connectivity check in backend/src/main.py
-- [ ] T042 [US1] Create basic Customer Success Agent with OpenAI Agents SDK (name, instructions, model) in backend/src/agent/customer_success_agent.py
-- [ ] T043 [US1] Implement POST /agent/process endpoint with request/response models in backend/src/main.py
-- [ ] T044 [US1] Integrate agent execution with Runner.run() using custom session and hooks in POST /agent/process endpoint in backend/src/main.py
-- [ ] T045 [US1] Wrap agent runs in trace() context manager with group_id for conversation linking in backend/src/main.py
-- [ ] T046 [US1] Add error handling and logging for agent processing endpoint in backend/src/main.py
-- [ ] T047 [US1] Add CORS middleware configuration in backend/src/main.py
-- [ ] T048 [US1] Validate configuration on startup with clear error messages in backend/src/main.py
+- [x] T037 [US1] Create knowledge base migration script with FastEmbed integration in backend/scripts/migrate_knowledge_base.py
+- [x] T038 [US1] Test knowledge base migration script with sample markdown files from mcp-server/context/
+- [x] T039 [US1] Create CustomerSuccessContext Pydantic model with conversation tracking fields in backend/src/agent/customer_success_agent.py
+- [x] T040 [P] [US1] Create FastAPI application with lifespan events in backend/src/main.py
+- [x] T041 [P] [US1] Implement GET /health endpoint with database connectivity check in backend/src/main.py
+- [x] T042 [US1] Create basic Customer Success Agent with OpenAI Agents SDK (name, instructions, model) in backend/src/agent/customer_success_agent.py
+- [x] T043 [US1] Implement POST /agent/process endpoint with request/response models in backend/src/main.py
+- [x] T044 [US1] Integrate agent execution with Runner.run() using custom session and hooks in POST /agent/process endpoint in backend/src/main.py
+- [x] T045 [US1] Wrap agent runs in trace() context manager with group_id for conversation linking in backend/src/main.py
+- [x] T046 [US1] Add error handling and logging for agent processing endpoint in backend/src/main.py
+- [x] T047 [US1] Add CORS middleware configuration in backend/src/main.py
+- [x] T048 [US1] Validate configuration on startup with clear error messages in backend/src/main.py
 
 **Checkpoint**: At this point, User Story 1 should be fully functional - agent can process basic inquiries with database persistence, semantic search, session memory, and observability tracking
 
@@ -112,20 +112,20 @@ This project uses web app structure:
 
 ### Implementation for User Story 2
 
-- [ ] T049 [P] [US2] Extract sentiment analysis skill prompt from incubation to backend/src/agent/prompts.py
-- [ ] T050 [P] [US2] Extract customer identification skill prompt from incubation to backend/src/agent/prompts.py
-- [ ] T051 [P] [US2] Extract knowledge retrieval skill prompt from incubation to backend/src/agent/prompts.py
-- [ ] T052 [P] [US2] Extract escalation decision skill prompt from incubation to backend/src/agent/prompts.py
-- [ ] T053 [P] [US2] Extract channel adaptation skill prompt from incubation to backend/src/agent/prompts.py
-- [ ] T054 [P] [US2] Implement identify_customer @function_tool with CustomerIdentifier cross-channel lookup in backend/src/agent/tools/identify_customer.py
-- [ ] T055 [P] [US2] Implement search_knowledge_base @function_tool with pgvector similarity search in backend/src/agent/tools/search_knowledge_base.py
-- [ ] T056 [US2] Implement create_ticket @function_tool with conversation creation and linking in backend/src/agent/tools/create_ticket.py
-- [ ] T057 [US2] Implement get_customer_history @function_tool with conversation and message retrieval in backend/src/agent/tools/get_customer_history.py
-- [ ] T058 [US2] Implement send_response @function_tool that stores message with role="agent" and observability fields in backend/src/agent/tools/send_response.py
-- [ ] T059 [US2] Create channel-specific formatters (Gmail, WhatsApp, Web Form, API) in backend/src/agent/formatters.py
-- [ ] T060 [US2] Register all 6 tools with Customer Success Agent in backend/src/agent/customer_success_agent.py
-- [ ] T061 [US2] Update agent instructions to include complete workflow (sentiment → identification → knowledge → escalation → response) in backend/src/agent/customer_success_agent.py
-- [ ] T062 [US2] Add context updates in all tools to track workflow state and conversation_id in backend/src/agent/tools/
+- [x] T049 [P] [US2] Extract sentiment analysis skill prompt from incubation to backend/src/agent/prompts.py
+- [x] T050 [P] [US2] Extract customer identification skill prompt from incubation to backend/src/agent/prompts.py
+- [x] T051 [P] [US2] Extract knowledge retrieval skill prompt from incubation to backend/src/agent/prompts.py
+- [x] T052 [P] [US2] Extract escalation decision skill prompt from incubation to backend/src/agent/prompts.py
+- [x] T053 [P] [US2] Extract channel adaptation skill prompt from incubation to backend/src/agent/prompts.py
+- [x] T054 [P] [US2] Implement identify_customer @function_tool with CustomerIdentifier cross-channel lookup in backend/src/agent/tools/identify_customer.py
+- [x] T055 [P] [US2] Implement search_knowledge_base @function_tool with pgvector similarity search in backend/src/agent/tools/search_knowledge_base.py
+- [x] T056 [US2] Implement create_ticket @function_tool with conversation creation and linking in backend/src/agent/tools/create_ticket.py
+- [x] T057 [US2] Implement get_customer_history @function_tool with conversation and message retrieval in backend/src/agent/tools/get_customer_history.py
+- [x] T058 [US2] Implement send_response @function_tool that stores message with role="agent" and observability fields in backend/src/agent/tools/send_response.py
+- [x] T059 [US2] Create channel-specific formatters (Gmail, WhatsApp, Web Form, API) in backend/src/agent/formatters.py
+- [x] T060 [US2] Register all 6 tools with Customer Success Agent in backend/src/agent/customer_success_agent.py
+- [x] T061 [US2] Update agent instructions to include complete workflow (sentiment → identification → knowledge → escalation → response) in backend/src/agent/customer_success_agent.py
+- [x] T062 [US2] Add context updates in all tools to track workflow state and conversation_id in backend/src/agent/tools/
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work - complete automated customer support workflow is functional with cross-channel customer unification
 
@@ -139,14 +139,14 @@ This project uses web app structure:
 
 ### Implementation for User Story 3
 
-- [ ] T063 [US3] Implement escalate_to_human @function_tool that updates conversation.escalated_to and conversation.status in backend/src/agent/tools/escalate_to_human.py
-- [ ] T064 [US3] Add sentiment trend analysis logic in escalate_to_human tool in backend/src/agent/tools/escalate_to_human.py
-- [ ] T065 [US3] Add conversation looping detection in escalate_to_human tool in backend/src/agent/tools/escalate_to_human.py
-- [ ] T066 [US3] Add explicit escalation request detection in escalate_to_human tool in backend/src/agent/tools/escalate_to_human.py
-- [ ] T067 [US3] Add high-value account prioritization in escalate_to_human tool in backend/src/agent/tools/escalate_to_human.py
-- [ ] T068 [US3] Register escalate_to_human tool with Customer Success Agent in backend/src/agent/customer_success_agent.py
-- [ ] T069 [US3] Update agent instructions to include escalation decision-making in backend/src/agent/customer_success_agent.py
-- [ ] T070 [US3] Add escalation_triggered and escalation_reason to ProcessInquiryResponse in backend/src/main.py
+- [x] T063 [US3] Implement escalate_to_human @function_tool that updates conversation.escalated_to and conversation.status in backend/src/agent/tools/escalate_to_human.py
+- [x] T064 [US3] Add sentiment trend analysis logic in escalate_to_human tool in backend/src/agent/tools/escalate_to_human.py
+- [x] T065 [US3] Add conversation looping detection in escalate_to_human tool in backend/src/agent/tools/escalate_to_human.py
+- [x] T066 [US3] Add explicit escalation request detection in escalate_to_human tool in backend/src/agent/tools/escalate_to_human.py
+- [x] T067 [US3] Add high-value account prioritization in escalate_to_human tool in backend/src/agent/tools/escalate_to_human.py
+- [x] T068 [US3] Register escalate_to_human tool with Customer Success Agent in backend/src/agent/customer_success_agent.py
+- [x] T069 [US3] Update agent instructions to include escalation decision-making in backend/src/agent/customer_success_agent.py
+- [x] T070 [US3] Add escalation_triggered and escalation_reason to ProcessInquiryResponse in backend/src/main.py
 
 **Checkpoint**: All core user stories (US1, US2, US3) should now be independently functional with complete escalation management tracked in conversations
 
@@ -161,42 +161,42 @@ This project uses web app structure:
 ### Implementation for User Story 4
 
 #### Test Infrastructure
-- [ ] T071 [P] [US4] Create pytest configuration in backend/pytest.ini
-- [ ] T072 [P] [US4] Create pytest fixtures for database session in backend/tests/conftest.py
-- [ ] T073 [P] [US4] Create pytest fixtures for test data (customers, customer_identifiers, conversations, tickets, messages) in backend/tests/conftest.py
-- [ ] T074 [P] [US4] Create unit test directory structure in backend/tests/unit/
-- [ ] T075 [P] [US4] Create integration test directory structure in backend/tests/integration/
+- [x] T071 [P] [US4] Create pytest configuration in backend/pytest.ini
+- [x] T072 [P] [US4] Create pytest fixtures for database session in backend/tests/conftest.py
+- [x] T073 [P] [US4] Create pytest fixtures for test data (customers, customer_identifiers, conversations, tickets, messages) in backend/tests/conftest.py
+- [x] T074 [P] [US4] Create unit test directory structure in backend/tests/unit/
+- [x] T075 [P] [US4] Create integration test directory structure in backend/tests/integration/
 
 #### Unit Tests (Fast, Mocked Dependencies)
-- [ ] T076 [P] [US4] Implement unit tests for identify_customer tool with mocked CustomerIdentifier lookup in backend/tests/unit/test_tools.py
-- [ ] T077 [P] [US4] Implement unit tests for search_knowledge_base tool with mocked vector search in backend/tests/unit/test_tools.py
-- [ ] T078 [P] [US4] Implement unit tests for create_ticket tool with mocked conversation creation in backend/tests/unit/test_tools.py
-- [ ] T079 [P] [US4] Implement unit tests for escalate_to_human tool with mocked conversation updates in backend/tests/unit/test_tools.py
-- [ ] T080 [P] [US4] Implement unit tests for send_response tool with mocked message storage in backend/tests/unit/test_tools.py
-- [ ] T081 [P] [US4] Implement unit tests for session transformations (Message ↔ EasyInputMessageParam) in backend/tests/unit/test_session_logic.py
-- [ ] T082 [P] [US4] Implement unit tests for RunHooks callbacks with mocked context in backend/tests/unit/test_hooks_logic.py
-- [ ] T083 [P] [US4] Implement unit tests for channel formatters (Gmail, WhatsApp, Web Form, API) in backend/tests/unit/test_formatters.py
-- [ ] T084 [P] [US4] Implement unit tests for prompt template rendering in backend/tests/unit/test_prompts.py
+- [x] T076 [P] [US4] Implement unit tests for identify_customer tool with mocked CustomerIdentifier lookup in backend/tests/unit/test_tools.py
+- [x] T077 [P] [US4] Implement unit tests for search_knowledge_base tool with mocked vector search in backend/tests/unit/test_tools.py
+- [x] T078 [P] [US4] Implement unit tests for create_ticket tool with mocked conversation creation in backend/tests/unit/test_tools.py
+- [x] T079 [P] [US4] Implement unit tests for escalate_to_human tool with mocked conversation updates in backend/tests/unit/test_tools.py
+- [x] T080 [P] [US4] Implement unit tests for send_response tool with mocked message storage in backend/tests/unit/test_tools.py
+- [x] T081 [P] [US4] Implement unit tests for session transformations (Message ↔ EasyInputMessageParam) in backend/tests/unit/test_session_logic.py
+- [x] T082 [P] [US4] Implement unit tests for RunHooks callbacks with mocked context in backend/tests/unit/test_hooks_logic.py
+- [x] T083 [P] [US4] Implement unit tests for channel formatters (Gmail, WhatsApp, Web Form, API) in backend/tests/unit/test_formatters.py
+- [x] T084 [P] [US4] Implement unit tests for prompt template rendering in backend/tests/unit/test_prompts.py
 
 #### Integration Tests (Real Database)
-- [ ] T085 [P] [US4] Implement integration tests for Customer CRUD operations in backend/tests/integration/test_database_crud.py
-- [ ] T086 [P] [US4] Implement integration tests for CustomerIdentifier CRUD with cross-channel lookup in backend/tests/integration/test_database_crud.py
-- [ ] T087 [P] [US4] Implement integration tests for Conversation CRUD with lifecycle tracking in backend/tests/integration/test_database_crud.py
-- [ ] T088 [P] [US4] Implement integration tests for Message CRUD with conversation history in backend/tests/integration/test_database_crud.py
-- [ ] T089 [P] [US4] Implement integration tests for Ticket CRUD with conversation linking in backend/tests/integration/test_database_crud.py
-- [ ] T090 [P] [US4] Implement integration tests for KnowledgeBase CRUD with vector search in backend/tests/integration/test_database_crud.py
-- [ ] T091 [P] [US4] Implement integration tests for custom session persistence (get_items, add_items, pop_item) in backend/tests/integration/test_session_persistence.py
-- [ ] T092 [P] [US4] Implement integration tests for full agent workflow with real database in backend/tests/integration/test_agent_workflow.py
-- [ ] T093 [P] [US4] Implement integration tests for GET /health endpoint in backend/tests/integration/test_api_endpoints.py
-- [ ] T094 [P] [US4] Implement integration tests for POST /agent/process endpoint in backend/tests/integration/test_api_endpoints.py
-- [ ] T095 [P] [US4] Implement integration tests for GET /agent/history/{conversation_id} endpoint in backend/tests/integration/test_api_endpoints.py
-- [ ] T096 [P] [US4] Implement integration tests for knowledge base migration script in backend/tests/integration/test_knowledge_migration.py
+- [x] T085 [P] [US4] Implement integration tests for Customer CRUD operations in backend/tests/integration/test_database_crud.py
+- [x] T086 [P] [US4] Implement integration tests for CustomerIdentifier CRUD with cross-channel lookup in backend/tests/integration/test_database_crud.py
+- [x] T087 [P] [US4] Implement integration tests for Conversation CRUD with lifecycle tracking in backend/tests/integration/test_database_crud.py
+- [x] T088 [P] [US4] Implement integration tests for Message CRUD with conversation history in backend/tests/integration/test_database_crud.py
+- [x] T089 [P] [US4] Implement integration tests for Ticket CRUD with conversation linking in backend/tests/integration/test_database_crud.py
+- [x] T090 [P] [US4] Implement integration tests for KnowledgeBase CRUD with vector search in backend/tests/integration/test_database_crud.py
+- [x] T091 [P] [US4] Implement integration tests for custom session persistence (get_items, add_items, pop_item) in backend/tests/integration/test_session_persistence.py
+- [x] T092 [P] [US4] Implement integration tests for full agent workflow with real database in backend/tests/integration/test_agent_workflow.py
+- [x] T093 [P] [US4] Implement integration tests for GET /health endpoint in backend/tests/integration/test_api_endpoints.py
+- [x] T094 [P] [US4] Implement integration tests for POST /agent/process endpoint in backend/tests/integration/test_api_endpoints.py
+- [x] T095 [P] [US4] Implement integration tests for GET /agent/history/{conversation_id} endpoint in backend/tests/integration/test_api_endpoints.py
+- [x] T096 [P] [US4] Implement integration tests for knowledge base migration script in backend/tests/integration/test_knowledge_migration.py
 
 #### Test Execution & Coverage
-- [ ] T097 [US4] Run pytest unit tests and verify all pass
-- [ ] T098 [US4] Run pytest integration tests with real database and verify all pass
-- [ ] T099 [US4] Run pytest with coverage report and verify >70% coverage
-- [ ] T100 [US4] Implement GET /agent/history/{conversation_id} endpoint in backend/src/main.py
+- [x] T097 [US4] Run pytest unit tests and verify all pass
+- [x] T098 [US4] Run pytest integration tests with real database and verify all pass
+- [x] T099 [US4] Run pytest with coverage report and verify >70% coverage
+- [x] T100 [US4] Implement GET /agent/history/{conversation_id} endpoint in backend/src/main.py
 
 **Checkpoint**: All user stories should now be independently functional with comprehensive test coverage including conversation lifecycle, cross-channel customer unification, session persistence, and observability tracking
 
@@ -206,13 +206,13 @@ This project uses web app structure:
 
 **Purpose**: Improvements that affect multiple user stories and final validation
 
-- [ ] T101 [P] Update README.md with setup instructions from quickstart.md in backend/README.md
-- [ ] T102 [P] Add docstrings to all agent tools in backend/src/agent/tools/
-- [ ] T103 [P] Add logging for all database operations in backend/src/database/queries.py
-- [ ] T104 [P] Add logging for all agent tool executions with observability tracking in backend/src/agent/tools/
-- [ ] T105 Validate all environment variables are documented in .env.example in backend/.env.example
-- [ ] T106 Run quickstart.md validation end-to-end
-- [ ] T107 Verify 100% feature parity with incubation MVP (all 5 skills, all 6 tools, all escalation rules)
+- [x] T101 [P] Update README.md with setup instructions from quickstart.md in backend/README.md
+- [x] T102 [P] Add docstrings to all agent tools in backend/src/agent/tools/
+- [x] T103 [P] Add logging for all database operations in backend/src/database/queries.py
+- [x] T104 [P] Add logging for all agent tool executions with observability tracking in backend/src/agent/tools/
+- [x] T105 Validate all environment variables are documented in .env.example in backend/.env.example
+- [x] T106 Run quickstart.md validation end-to-end
+- [x] T107 Verify 100% feature parity with incubation MVP (all 5 skills, all 6 tools, all escalation rules)
 
 ---
 
