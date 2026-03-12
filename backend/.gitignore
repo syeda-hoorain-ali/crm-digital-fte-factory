@@ -18,3 +18,7 @@ coverage.xml
 .env
 .env.*
 !.env.example
+
+# Gmail API credentials (sensitive)
+*credentials*.json
+client_secret*.json

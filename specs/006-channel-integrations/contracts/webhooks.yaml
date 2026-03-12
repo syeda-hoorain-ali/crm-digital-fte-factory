@@ -1,0 +1,541 @@
+openapi: 3.0.3
+info:
+  title: Multi-Channel Webhook API
+  description: Webhook endpoints for Gmail, WhatsApp, and Web Form channel integrations
+  version: 1.0.0
+  contact:
+    name: CRM Digital FTE Factory
+    email: support@example.com
+
+servers:
+  - url: https://api.example.com
+    description: Production server
+  - url: http://localhost:8000
+    description: Local development server
+
+security:
+  - HMACSignature: []
+
+paths:
+  /webhooks/gmail:
+    post:
+      summary: Gmail Pub/Sub webhook
+      description: Receives push notifications from Google Cloud Pub/Sub when new emails arrive
+      operationId: handleGmailWebhook
+      tags:
+        - Webhooks
+      security:
+        - HMACSignature: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PubSubMessage'
+            example:
+              message:
+                data: "eyJlbWFpbEFkZHJlc3MiOiJ1c2VyQGV4YW1wbGUuY29tIiwiaGlzdG9yeUlkIjoiMTIzNDU2In0="
+                messageId: "136969346945"
+                publishTime: "2024-03-04T10:00:00.000Z"
+              subscription: "projects/myproject/subscriptions/gmail-push"
+      responses:
+        '200':
+          description: Webhook received and processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookResponse'
+        '401':
+          description: Missing or invalid HMAC signature
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: HMAC signature verification failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /webhooks/whatsapp:
+    post:
+      summary: Twilio WhatsApp webhook
+      description: Receives incoming WhatsApp messages via Twilio webhook
+      operationId: handleWhatsAppWebhook
+      tags:
+        - Webhooks
+      security:
+        - TwilioSignature: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TwilioWebhookPayload'
+      responses:
+        '200':
+          description: Webhook received and processed successfully
+          content:
+            application/xml:
+              schema:
+                type: string
+                example: '<?xml version="1.0" encoding="UTF-8"?><Response></Response>'
+        '403':
+          description: Invalid Twilio signature
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /webhooks/whatsapp/status:
+    post:
+      summary: Twilio WhatsApp status callback
+      description: Receives delivery status updates for sent WhatsApp messages
+      operationId: handleWhatsAppStatusCallback
+      tags:
+        - Webhooks
+      security:
+        - TwilioSignature: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TwilioStatusCallback'
+      responses:
+        '200':
+          description: Status update received
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookResponse'
+        '403':
+          description: Invalid Twilio signature
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /support/submit:
+    post:
+      summary: Submit support request via web form
+      description: Accepts customer support requests from the web form
+      operationId: submitSupportRequest
+      tags:
+        - Web Form
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupportFormSubmission'
+            example:
+              name: "John Doe"
+              email: "john.doe@example.com"
+              subject: "Help with API authentication"
+              category: "technical"
+              priority: "medium"
+              message: "I'm having trouble authenticating with the API. Can you help?"
+      responses:
+        '200':
+          description: Support request submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportFormResponse'
+              example:
+                ticket_id: "550e8400-e29b-41d4-a716-446655440000"
+                message: "Thank you for contacting us! Our AI assistant will respond shortly."
+                estimated_response_time: "Usually within 5 minutes"
+        '400':
+          description: Invalid form data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '429':
+          description: Rate limit exceeded
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds until rate limit resets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /support/ticket/{ticket_id}:
+    get:
+      summary: Get ticket status
+      description: Retrieves the status and conversation history for a support ticket
+      operationId: getTicketStatus
+      tags:
+        - Web Form
+      security: []
+      parameters:
+        - name: ticket_id
+          in: path
+          required: true
+          description: Unique ticket identifier
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Ticket details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketStatus'
+        '404':
+          description: Ticket not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /health:
+    get:
+      summary: Health check
+      description: Returns the health status of the API and its dependencies
+      operationId: healthCheck
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+components:
+  securitySchemes:
+    HMACSignature:
+      type: apiKey
+      in: header
+      name: X-Signature
+      description: HMAC-SHA256 signature of the request body
+
+    TwilioSignature:
+      type: apiKey
+      in: header
+      name: X-Twilio-Signature
+      description: Twilio webhook signature for request validation
+
+  schemas:
+    PubSubMessage:
+      type: object
+      required:
+        - message
+        - subscription
+      properties:
+        message:
+          type: object
+          required:
+            - data
+            - messageId
+          properties:
+            data:
+              type: string
+              format: byte
+              description: Base64-encoded message data
+            messageId:
+              type: string
+              description: Unique message identifier
+            publishTime:
+              type: string
+              format: date-time
+              description: When the message was published
+        subscription:
+          type: string
+          description: Pub/Sub subscription name
+
+    TwilioWebhookPayload:
+      type: object
+      required:
+        - MessageSid
+        - From
+        - To
+        - Body
+      properties:
+        MessageSid:
+          type: string
+          description: Unique message identifier from Twilio
+        From:
+          type: string
+          description: Sender's WhatsApp number (format: whatsapp:+1234567890)
+        To:
+          type: string
+          description: Recipient's WhatsApp number
+        Body:
+          type: string
+          description: Message content
+        NumMedia:
+          type: string
+          description: Number of media attachments
+        MediaUrl0:
+          type: string
+          format: uri
+          description: URL of first media attachment (if any)
+        ProfileName:
+          type: string
+          description: Sender's WhatsApp profile name
+        WaId:
+          type: string
+          description: WhatsApp ID of the sender
+
+    TwilioStatusCallback:
+      type: object
+      required:
+        - MessageSid
+        - MessageStatus
+      properties:
+        MessageSid:
+          type: string
+          description: Unique message identifier
+        MessageStatus:
+          type: string
+          enum: [queued, sent, delivered, read, failed, undelivered]
+          description: Current delivery status
+        ErrorCode:
+          type: string
+          description: Error code if delivery failed
+        ErrorMessage:
+          type: string
+          description: Error message if delivery failed
+
+    SupportFormSubmission:
+      type: object
+      required:
+        - name
+        - email
+        - subject
+        - category
+        - message
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 255
+          description: Customer's full name
+        email:
+          type: string
+          format: email
+          description: Customer's email address
+        subject:
+          type: string
+          minLength: 5
+          maxLength: 500
+          description: Brief description of the issue
+        category:
+          type: string
+          enum: [general, technical, billing, feedback, bug_report]
+          description: Type of support request
+        priority:
+          type: string
+          enum: [low, medium, high]
+          default: medium
+          description: Request priority level
+        message:
+          type: string
+          minLength: 10
+          maxLength: 5000
+          description: Detailed description of the issue
+        attachments:
+          type: array
+          items:
+            type: string
+          description: Base64-encoded file attachments (optional)
+
+    SupportFormResponse:
+      type: object
+      required:
+        - ticket_id
+        - message
+        - estimated_response_time
+      properties:
+        ticket_id:
+          type: string
+          format: uuid
+          description: Unique ticket identifier for tracking
+        message:
+          type: string
+          description: Confirmation message
+        estimated_response_time:
+          type: string
+          description: Expected response time
+
+    TicketStatus:
+      type: object
+      required:
+        - ticket_id
+        - status
+        - created_at
+      properties:
+        ticket_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [open, processing, resolved, escalated]
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketMessage'
+        created_at:
+          type: string
+          format: date-time
+        last_updated:
+          type: string
+          format: date-time
+
+    TicketMessage:
+      type: object
+      required:
+        - role
+        - content
+        - timestamp
+      properties:
+        role:
+          type: string
+          enum: [customer, agent, system]
+        content:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    WebhookResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [received, processing, completed]
+        message:
+          type: string
+
+    HealthStatus:
+      type: object
+      required:
+        - status
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        channels:
+          type: object
+          properties:
+            email:
+              type: string
+              enum: [active, inactive, error]
+            whatsapp:
+              type: string
+              enum: [active, inactive, error]
+            webform:
+              type: string
+              enum: [active, inactive, error]
+        dependencies:
+          type: object
+          properties:
+            database:
+              type: string
+              enum: [connected, disconnected]
+            kafka:
+              type: string
+              enum: [connected, disconnected]
+            redis:
+              type: string
+              enum: [connected, disconnected]
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error details
+
+    ValidationError:
+      type: object
+      required:
+        - error
+        - message
+        - validation_errors
+      properties:
+        error:
+          type: string
+          example: "validation_error"
+        message:
+          type: string
+          example: "Invalid form data"
+        validation_errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+          example:
+            - field: "email"
+              message: "Invalid email format"
+            - field: "message"
+              message: "Message must be at least 10 characters"
+
+tags:
+  - name: Webhooks
+    description: Webhook endpoints for external channel integrations
+  - name: Web Form
+    description: Web form submission and ticket tracking
+  - name: System
+    description: System health and monitoring endpoints

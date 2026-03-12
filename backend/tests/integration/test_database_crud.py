@@ -88,7 +88,7 @@ class TestCustomerCRUD:
         assert customer.name == "John Doe"
         assert customer.email == "john@example.com"
         assert customer.phone == "+1234567890"
-        assert customer.meta_data["tier"] == "premium"
+        assert customer.metadata_["tier"] == "premium"
 
     @pytest.mark.asyncio
     async def test_get_customer(self, db_session: AsyncSession, test_customer: Customer):

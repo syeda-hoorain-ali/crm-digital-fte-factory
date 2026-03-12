@@ -1,13 +1,18 @@
-"""Pytest configuration and fixtures for CRM backend tests."""
+"""Test fixtures for database models."""
 
-import asyncio
 import pytest
-import pytest_asyncio
-from uuid import uuid4
-from collections.abc import AsyncGenerator
+import os
+from typing import Any, AsyncGenerator, Generator
+from dotenv import find_dotenv, load_dotenv
+from aiokafka import AIOKafkaConsumer
+from aiokafka.errors import KafkaError
+from fastapi.testclient import TestClient
+from sqlmodel import col, create_engine, Session, SQLModel
+from sqlmodel.pool import StaticPool
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.engine import Engine
 
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
-from sqlalchemy.pool import NullPool
 
 from src.database.models import (
     Customer,
@@ -15,389 +20,297 @@ from src.database.models import (
     Conversation,
     Message,
     Ticket,
-    KnowledgeBase,
-    IdentifierType,
+    ChannelConfiguration,
+    MessageAttachment,
+    WebhookDeliveryLog,
+    RateLimitEntry,
     Channel,
+    IdentifierType,
     ConversationStatus,
-    MessageRole,
     MessageDirection,
+    MessageRole,
     DeliveryStatus,
     Priority,
     TicketStatus,
+    WebhookProcessingStatus,
 )
-from src.config import settings
+
+load_dotenv(find_dotenv())
 
 
-# ============================================================================
-# Event Loop Configuration
-# ============================================================================
+@pytest.fixture(name="kafka_producer", scope="function")
+async def kafka_producer_fixture() -> AsyncGenerator[Any, None]:
+    """Create Kafka producer for E2E tests."""
+    from src.kafka.producer import KafkaMessageProducer
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create event loop for async tests."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+    # Get Kafka bootstrap servers from environment
+    kafka_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+
+    producer = None
+    try:
+        producer = KafkaMessageProducer(kafka_servers)
+        await producer.start()
+        yield producer
+    except Exception as e:
+        pytest.skip(f"Kafka not available: {e}")
+    finally:
+        if producer:
+            await producer.stop()
 
 
-# ============================================================================
-# Database Session Fixtures
-# ============================================================================
+@pytest.fixture(name="kafka_consumer", scope="function")
+async def kafka_consumer_fixture() -> AsyncGenerator[AIOKafkaConsumer, None]:
+    """Create Kafka consumer for E2E tests to verify message delivery."""
 
-@pytest_asyncio.fixture(scope="function")
-async def db_engine() -> AsyncGenerator[AsyncEngine, None]:
-    """Create async database engine for tests.
+    # Get Kafka bootstrap servers from environment
+    kafka_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 
-    Uses the same database as production but with transaction rollback for isolation.
-    Each test runs in its own transaction that is rolled back after completion.
-    """
-    # Use the same database URL from settings
-    test_db_url = settings.database_url
+    consumer = None
+    try:
+        # Subscribe to all inbound topics
+        consumer = AIOKafkaConsumer(
+            "customer-intake.all.inbound",
+            "customer-intake.webform.inbound",
+            "customer-intake.email.inbound",
+            "customer-intake.whatsapp.inbound",
+            bootstrap_servers=kafka_servers,
+            auto_offset_reset='latest',  # Only read new messages
+            enable_auto_commit=False,
+            group_id=f"test-consumer-{os.getpid()}",  # Unique group per test run
+            consumer_timeout_ms=5000  # 5 second timeout
+        )
+        await consumer.start()
+        yield consumer
+    except KafkaError as e:
+        pytest.skip(f"Kafka not available: {e}")
+    finally:
+        if consumer:
+            await consumer.stop()
 
-    # Ensure asyncpg driver is used
-    if test_db_url.startswith("postgresql://"):
-        test_db_url = test_db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-    # Remove sslmode and channel_binding parameters (asyncpg doesn't support them in URL)
-    if "?" in test_db_url:
-        base_url, params = test_db_url.split("?", 1)
-        param_pairs = [p for p in params.split("&") if not p.startswith(("sslmode=", "channel_binding="))]
-        if param_pairs:
-            test_db_url = f"{base_url}?{'&'.join(param_pairs)}"
-        else:
-            test_db_url = base_url
+@pytest.fixture(name="engine")
+def engine_fixture() -> Engine:
+    """Create in-memory SQLite engine for testing."""
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    SQLModel.metadata.create_all(engine)
+    return engine
 
-    # For asyncpg, SSL must be configured via connect_args, not URL parameters
-    engine = create_async_engine(
-        test_db_url,
-        echo=False,
-        poolclass=NullPool,  # Disable connection pooling for tests
-        connect_args={"ssl": "require"},  # SSL configuration for asyncpg
+
+@pytest.fixture(name="session")
+async def session_fixture() -> AsyncGenerator[AsyncSession, None]:
+    """Create async database session for testing (SQLite for unit/integration tests)."""
+    # Create async engine for unit/integration tests
+    async_engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
     )
 
-    yield engine
+    # Create tables
+    async with async_engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
 
-    await engine.dispose()
+    # Create session
+    async_session = async_sessionmaker(
+        async_engine, class_=AsyncSession, expire_on_commit=False
+    )
 
-
-@pytest_asyncio.fixture(scope="function")
-async def db_session(db_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
-    async with db_engine.connect() as conn:
-        await conn.begin()  # outer transaction, never committed
-
-        async with AsyncSession(
-            bind=conn,
-            expire_on_commit=False,
-            join_transaction_mode="create_savepoint",  # allows inner commits via savepoints
-        ) as session:
-            yield session
-
-        await conn.rollback()  # always rolls back, leaving DB clean
+    async with async_session() as session:
+        yield session
+        await session.rollback()
 
 
-# ============================================================================
-# Test Data Fixtures - Customers
-# ============================================================================
+@pytest.fixture(name="e2e_session", scope="function")
+async def e2e_session_fixture() -> AsyncGenerator[AsyncSession, None]:
+    """Create async database session for E2E tests using real PostgreSQL."""
+    # Get DATABASE_URL from environment
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        pytest.skip("DATABASE_URL not set - skipping E2E test")
 
-@pytest_asyncio.fixture
-async def test_customer(db_session: AsyncSession) -> Customer:
-    """Create a test customer."""
+    # Convert to async URL if needed
+    if database_url.startswith("postgresql://"):
+        database_url = database_url.replace("postgresql://", "postgresql+asyncpg://")
+
+    # Create async engine for E2E tests with real PostgreSQL
+    async_engine = create_async_engine(
+        database_url,
+        echo=False,
+    )
+
+    # Create session
+    async_session = async_sessionmaker(
+        async_engine, class_=AsyncSession, expire_on_commit=False
+    )
+
+    async with async_session() as session:
+        yield session
+        await session.rollback()
+
+    # Clean up engine
+    await async_engine.dispose()
+
+
+@pytest.fixture(name="clean_test_data", scope="function")
+async def clean_test_data_fixture(e2e_session: AsyncSession):
+    """Clean up test data before and after E2E tests."""
+    from sqlmodel import select, delete
+
+    # Test identifiers used in E2E tests
+    test_emails = [
+        "alice@example.com",
+        "ratelimit@example.com",
+        "reopen@example.com",
+        "continuity@example.com",
+        "bob@example.com"
+    ]
+
+    test_phones = [
+        "+1234567890"
+    ]
+
+    async def cleanup():
+        """Delete all test data for test identifiers."""
+        # Collect all customer IDs to clean
+        customer_ids = set()
+
+        # Find customers by email
+        for email in test_emails:
+            result = await e2e_session.execute(
+                select(CustomerIdentifier).where(CustomerIdentifier.identifier_value == email)
+            )
+            identifier = result.scalars().first()
+            if identifier:
+                customer_ids.add(identifier.customer_id)
+
+        # Find customers by phone
+        for phone in test_phones:
+            result = await e2e_session.execute(
+                select(CustomerIdentifier).where(CustomerIdentifier.identifier_value == phone)
+            )
+            identifier = result.scalars().first()
+            if identifier:
+                customer_ids.add(identifier.customer_id)
+
+        # Delete all data for collected customer IDs
+        for customer_id in customer_ids:
+            # Delete in order: messages, tickets, conversations, identifiers, customer
+            await e2e_session.execute(
+                delete(Message).where(
+                    col(Message.conversation_id).in_(
+                        select(Conversation.id).where(Conversation.customer_id == customer_id)
+                    )
+                )
+            )
+            await e2e_session.execute(
+                delete(Ticket).where(col(Ticket.customer_id) == customer_id)
+            )
+            await e2e_session.execute(
+                delete(Conversation).where(col(Conversation.customer_id) == customer_id)
+            )
+            await e2e_session.execute(
+                delete(CustomerIdentifier).where(col(CustomerIdentifier.customer_id) == customer_id)
+            )
+            await e2e_session.execute(
+                delete(Customer).where(col(Customer.id) == customer_id)
+            )
+
+            await e2e_session.commit()
+
+    # Clean before test
+    await cleanup()
+
+    yield
+
+    # Clean after test
+    await cleanup()
+
+
+@pytest.fixture
+def client() -> TestClient:
+    """FastAPI test client."""
+    from src.main import app
+    return TestClient(app)
+
+
+@pytest.fixture
+async def client_with_kafka(kafka_producer):
+    """FastAPI async client with Kafka producer initialized."""
+    from httpx import AsyncClient, ASGITransport
+    from src.main import app
+    from src.api.webhooks import web_form, whatsapp, gmail
+
+    # Inject Kafka producer into webhook modules
+    web_form.kafka_producer = kafka_producer
+    whatsapp.kafka_producer = kafka_producer
+    gmail.kafka_producer = kafka_producer
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test"
+    ) as client:
+        yield client
+
+    # Cleanup
+    web_form.kafka_producer = None
+    whatsapp.kafka_producer = None
+    gmail.kafka_producer = None
+
+
+@pytest.fixture
+def sync_session(engine: Engine) -> Generator[Session, Any, None]:
+    """Create synchronous database session for testing."""
+    with Session(engine) as session:
+        yield session
+        session.rollback()
+
+
+@pytest.fixture
+def sample_customer(sync_session: Session) -> Customer:
+    """Create sample customer for testing."""
     customer = Customer(
-        id=uuid4(),
         email="test@example.com",
         phone="+1234567890",
         name="Test Customer",
-        meta_data={"tier": "standard"},
+        metadata_={"source": "test"}
     )
-    db_session.add(customer)
-    await db_session.flush()
-    await db_session.refresh(customer)
+    sync_session.add(customer)
+    sync_session.commit()
+    sync_session.refresh(customer)
     return customer
 
 
-@pytest_asyncio.fixture
-async def test_customer_premium(db_session: AsyncSession) -> Customer:
-    """Create a premium tier test customer."""
-    customer = Customer(
-        id=uuid4(),
-        email="premium@example.com",
-        phone="+1987654321",
-        name="Premium Customer",
-        meta_data={"tier": "premium", "account_value": 50000},
-    )
-    db_session.add(customer)
-    await db_session.flush()
-    await db_session.refresh(customer)
-    return customer
-
-
-# ============================================================================
-# Test Data Fixtures - Customer Identifiers
-# ============================================================================
-
-@pytest_asyncio.fixture
-async def test_customer_identifier_email(
-    db_session: AsyncSession, test_customer: Customer
-) -> CustomerIdentifier:
-    """Create email identifier for test customer."""
-    identifier = CustomerIdentifier(
-        id=uuid4(),
-        customer_id=test_customer.id,
-        identifier_type=IdentifierType.EMAIL,
-        identifier_value=test_customer.email,
-        verified=True,
-    )
-    db_session.add(identifier)
-    await db_session.flush()
-    await db_session.refresh(identifier)
-    return identifier
-
-
-@pytest_asyncio.fixture
-async def test_customer_identifier_phone(
-    db_session: AsyncSession, test_customer: Customer
-) -> CustomerIdentifier:
-    """Create phone identifier for test customer."""
-    identifier = CustomerIdentifier(
-        id=uuid4(),
-        customer_id=test_customer.id,
-        identifier_type=IdentifierType.PHONE,
-        identifier_value=test_customer.phone,
-        verified=False,
-    )
-    db_session.add(identifier)
-    await db_session.flush()
-    await db_session.refresh(identifier)
-    return identifier
-
-
-# ============================================================================
-# Test Data Fixtures - Conversations
-# ============================================================================
-
-@pytest_asyncio.fixture
-async def test_conversation(
-    db_session: AsyncSession, test_customer: Customer
-) -> Conversation:
-    """Create a test conversation."""
+@pytest.fixture
+def sample_conversation(sync_session: Session, sample_customer: Customer) -> Conversation:
+    """Create sample conversation for testing."""
     conversation = Conversation(
-        id=uuid4(),
-        customer_id=test_customer.id,
-        initial_channel=Channel.API,
-        status=ConversationStatus.ACTIVE,
-        sentiment_score=0.5,
-    )
-    db_session.add(conversation)
-    await db_session.flush()
-    await db_session.refresh(conversation)
-    return conversation
-
-
-@pytest_asyncio.fixture
-async def test_conversation_escalated(
-    db_session: AsyncSession, test_customer: Customer
-) -> Conversation:
-    """Create an escalated test conversation."""
-    conversation = Conversation(
-        id=uuid4(),
-        customer_id=test_customer.id,
+        customer_id=sample_customer.id,
         initial_channel=Channel.EMAIL,
-        status=ConversationStatus.ESCALATED,
-        sentiment_score=-0.7,
-        escalated_to="support-team@example.com",
+        status=ConversationStatus.ACTIVE,
+        sentiment_score=0.5
     )
-    db_session.add(conversation)
-    await db_session.flush()
-    await db_session.refresh(conversation)
+    sync_session.add(conversation)
+    sync_session.commit()
+    sync_session.refresh(conversation)
     return conversation
 
 
-# ============================================================================
-# Test Data Fixtures - Messages
-# ============================================================================
-
-@pytest_asyncio.fixture
-async def test_message_customer(
-    db_session: AsyncSession, test_conversation: Conversation
-) -> Message:
-    """Create a customer message."""
+@pytest.fixture
+def sample_message(sync_session: Session, sample_conversation: Conversation) -> Message:
+    """Create sample message for testing."""
     message = Message(
-        id=uuid4(),
-        conversation_id=test_conversation.id,
-        channel=Channel.API,
+        conversation_id=sample_conversation.id,
+        channel=Channel.EMAIL,
         direction=MessageDirection.INBOUND,
         role=MessageRole.CUSTOMER,
-        content="I need help with my account",
-        sentiment_score=0.2,
+        content="Test message content",
+        delivery_status=DeliveryStatus.PENDING
     )
-    db_session.add(message)
-    await db_session.flush()
-    await db_session.refresh(message)
+    sync_session.add(message)
+    sync_session.commit()
+    sync_session.refresh(message)
     return message
-
-
-@pytest_asyncio.fixture
-async def test_message_agent(
-    db_session: AsyncSession, test_conversation: Conversation
-) -> Message:
-    """Create an agent message."""
-    message = Message(
-        id=uuid4(),
-        conversation_id=test_conversation.id,
-        channel=Channel.API,
-        direction=MessageDirection.OUTBOUND,
-        role=MessageRole.AGENT,
-        content="I'd be happy to help you with your account.",
-        tokens_used=50,
-        latency_ms=250,
-        delivery_status=DeliveryStatus.SENT,
-    )
-    db_session.add(message)
-    await db_session.flush()
-    await db_session.refresh(message)
-    return message
-
-
-# ============================================================================
-# Test Data Fixtures - Tickets
-# ============================================================================
-
-@pytest_asyncio.fixture
-async def test_ticket(
-    db_session: AsyncSession,
-    test_conversation: Conversation,
-    test_customer: Customer,
-) -> Ticket:
-    """Create a test ticket."""
-    ticket = Ticket(
-        id=uuid4(),
-        conversation_id=test_conversation.id,
-        customer_id=test_customer.id,
-        source_channel=Channel.API,
-        category="technical",
-        priority=Priority.MEDIUM,
-        status=TicketStatus.OPEN,
-    )
-    db_session.add(ticket)
-    await db_session.flush()
-    await db_session.refresh(ticket)
-    return ticket
-
-
-@pytest_asyncio.fixture
-async def test_ticket_high_priority(
-    db_session: AsyncSession,
-    test_conversation_escalated: Conversation,
-    test_customer_premium: Customer,
-) -> Ticket:
-    """Create a high priority test ticket."""
-    ticket = Ticket(
-        id=uuid4(),
-        conversation_id=test_conversation_escalated.id,
-        customer_id=test_customer_premium.id,
-        source_channel=Channel.EMAIL,
-        category="billing",
-        priority=Priority.HIGH,
-        status=TicketStatus.IN_PROGRESS,
-    )
-    db_session.add(ticket)
-    await db_session.flush()
-    await db_session.refresh(ticket)
-    return ticket
-
-
-# ============================================================================
-# Test Data Fixtures - Knowledge Base
-# ============================================================================
-
-@pytest_asyncio.fixture
-async def test_knowledge_article(db_session: AsyncSession) -> KnowledgeBase:
-    """Create a test knowledge base article."""
-    # Create a dummy embedding (384 dimensions for all-MiniLM-L6-v2)
-    dummy_embedding = [0.1] * 384
-
-    article = KnowledgeBase(
-        id=uuid4(),
-        title="How to Reset Your Password",
-        content="To reset your password, go to Settings > Security > Reset Password. Follow the instructions sent to your email.",
-        category="account",
-        embedding=dummy_embedding,
-    )
-    db_session.add(article)
-    await db_session.flush()
-    await db_session.refresh(article)
-    return article
-
-
-@pytest_asyncio.fixture
-async def test_knowledge_articles(db_session: AsyncSession) -> list[KnowledgeBase]:
-    """Create multiple test knowledge base articles."""
-    dummy_embedding = [0.1] * 384
-
-    articles = [
-        KnowledgeBase(
-            id=uuid4(),
-            title="Getting Started Guide",
-            content="Welcome to CloudStream CRM! This guide will help you get started with the platform.",
-            category="onboarding",
-            embedding=dummy_embedding,
-        ),
-        KnowledgeBase(
-            id=uuid4(),
-            title="Billing FAQ",
-            content="Common questions about billing, invoices, and payment methods.",
-            category="billing",
-            embedding=dummy_embedding,
-        ),
-        KnowledgeBase(
-            id=uuid4(),
-            title="API Documentation",
-            content="Complete API reference for CloudStream CRM integration.",
-            category="technical",
-            embedding=dummy_embedding,
-        ),
-    ]
-
-    for article in articles:
-        db_session.add(article)
-
-    await db_session.flush()
-    for article in articles:
-        await db_session.refresh(article)
-
-    return articles
-
-
-# ============================================================================
-# Mock Fixtures for Unit Tests
-# ============================================================================
-
-@pytest.fixture
-def mock_customer_context():
-    """Mock CustomerSuccessContext for unit tests."""
-    from src.agent.context import CustomerSuccessContext
-    from unittest.mock import create_autospec
-    from sqlalchemy.ext.asyncio import AsyncSession
-
-    # Create a mock that passes isinstance checks
-    mock_session = create_autospec(AsyncSession, instance=True)
-
-    context = CustomerSuccessContext(
-        db_session=mock_session,
-        customer_id=str(uuid4()),
-        customer_email="test@example.com",
-        customer_phone="+1234567890",
-        conversation_id=str(uuid4()),
-        channel="api",
-    )
-    return context
-
-
-@pytest.fixture
-def mock_run_context_wrapper(mock_customer_context):
-    """Mock RunContextWrapper for unit tests."""
-    from unittest.mock import MagicMock
-
-    wrapper = MagicMock()
-    wrapper.context = mock_customer_context
-    return wrapper

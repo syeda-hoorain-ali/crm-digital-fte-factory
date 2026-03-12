@@ -11,13 +11,13 @@ user: developer
 command: implementation
 labels: ["fastapi", "cors", "configuration", "validation", "startup"]
 links:
-  spec: /mnt/d/my-projects/crm-digital-fte-factory/specs/005-custom-agent-transition/spec.md
+  spec: specs/005-custom-agent-transition/spec.md
   ticket: null
   adr: null
   pr: null
 files:
-  - /mnt/d/my-projects/crm-digital-fte-factory/backend/src/main.py
-  - /mnt/d/my-projects/crm-digital-fte-factory/specs/005-custom-agent-transition/tasks.md
+  - backend/src/main.py
+  - specs/005-custom-agent-transition/tasks.md
 tests:
   - None (integration tests planned in T093)
 ---
@@ -28,7 +28,7 @@ Continue with T047-T048: Add CORS middleware configuration and validate configur
 
 ## Response snapshot
 
-Completed T047 and T048 in `/mnt/d/my-projects/crm-digital-fte-factory/backend/src/main.py`:
+Completed T047 and T048 in `backend/src/main.py`:
 
 **T047 - CORS Middleware Configuration:**
 - Added CORSMiddleware to FastAPI app

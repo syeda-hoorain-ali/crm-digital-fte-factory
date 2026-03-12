@@ -120,6 +120,34 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         await session.close()
 
 
+async def get_session_dependency() -> AsyncGenerator[AsyncSession, None]:
+    """
+    FastAPI dependency for database sessions.
+
+    This is a raw async generator (not wrapped in @asynccontextmanager)
+    for use with FastAPI's Depends() system.
+
+    Usage:
+        async def endpoint(session: AsyncSession = Depends(get_session_dependency)):
+            result = await session.execute(query)
+            await session.commit()
+
+    Yields:
+        AsyncSession: Database session
+    """
+    session_factory = get_session_factory()
+    session = session_factory()
+
+    try:
+        yield session
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        raise
+    finally:
+        await session.close()
+
+
 async def test_connection(max_retries: int = 3, retry_delay: float = 1.0) -> bool:
     """
     Test database connection with retry logic and exponential backoff.

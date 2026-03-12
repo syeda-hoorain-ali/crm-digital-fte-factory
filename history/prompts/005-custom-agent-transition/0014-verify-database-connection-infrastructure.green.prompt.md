@@ -11,7 +11,7 @@ user: developer
 command: implementation
 labels: ["database", "infrastructure", "verification", "T013", "T014"]
 links:
-  spec: /mnt/d/my-projects/crm-digital-fte-factory/specs/005-custom-agent-transition/spec.md
+  spec: specs/005-custom-agent-transition/spec.md
   ticket: null
   adr: null
   pr: null
@@ -88,11 +88,11 @@ async def get_session():
 
 **After completion**: Mark T013 and T014 as completed in specs/005-custom-agent-transition/tasks.md
 
-Work in: /mnt/d/my-projects/crm-digital-fte-factory/backend
+Work in: backend
 
 ## Response snapshot
 
-Verified that tasks T013 and T014 are already completed. The implementation in `/mnt/d/my-projects/crm-digital-fte-factory/backend/src/database/connection.py` fully satisfies all requirements:
+Verified that tasks T013 and T014 are already completed. The implementation in `backend/src/database/connection.py` fully satisfies all requirements:
 
 **T013 - Async database engine (COMPLETE):**
 - ✅ Creates async engine using `create_async_engine` (line 58)

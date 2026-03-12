@@ -1835,6 +1835,7 @@ If a customer has contacted us before (any channel), acknowledge it:
         send_response
     ],
 )
+```
 
 ### Exercise 2.4: Unified Message Processor (3-4 hours)
 

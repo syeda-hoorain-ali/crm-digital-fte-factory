@@ -11,7 +11,7 @@ user: wsl-user
 command: claude-code
 labels: ["configuration", "pydantic", "environment-variables", "validation"]
 links:
-  spec: /mnt/d/my-projects/crm-digital-fte-factory/specs/005-custom-agent-transition/spec.md
+  spec: specs/005-custom-agent-transition/spec.md
   ticket: null
   adr: null
   pr: null
@@ -72,11 +72,11 @@ settings = Settings()
 
 **After completion**: Mark task T003 as completed in specs/005-custom-agent-transition/tasks.md by changing `- [ ] T003` to `- [x] T003`
 
-Work in directory: /mnt/d/my-projects/crm-digital-fte-factory/backend
+Work in directory: backend
 
 ## Response snapshot
 
-Created `/mnt/d/my-projects/crm-digital-fte-factory/backend/src/config.py` with comprehensive Pydantic Settings implementation including:
+Created `backend/src/config.py` with comprehensive Pydantic Settings implementation including:
 
 **Core Configuration Fields**:
 - Database: `database_url` (required, validated)
