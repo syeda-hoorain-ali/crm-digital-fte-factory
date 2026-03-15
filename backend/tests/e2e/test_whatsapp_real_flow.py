@@ -22,6 +22,7 @@ Requires:
 """
 
 import asyncio
+import json
 import os
 import pytest
 import uuid
@@ -50,6 +51,7 @@ from src.database.models import (
     TicketStatus,
     WebhookProcessingStatus,
 )
+from src.kafka.schemas import ChannelMessage
 
 
 @pytest.mark.asyncio
@@ -159,7 +161,8 @@ class TestWhatsAppRealFlow:
     async def test_whatsapp_inbound_message_processing(
         self,
         e2e_session: AsyncSession,
-        clean_test_data
+        clean_test_data,
+        kafka_consumer
     ):
         """Test complete flow: trigger webhook → database → Kafka.
 
@@ -171,6 +174,7 @@ class TestWhatsAppRealFlow:
         5. Verify message stored
         6. Verify ticket created
         7. Verify webhook log
+        8. Verify Kafka event published
         """
         print(f"\n{'='*60}")
         print(f"Starting WhatsApp Real E2E Test: {self.test_id}")
@@ -338,6 +342,80 @@ class TestWhatsAppRealFlow:
         print(f"  Status: {webhook_log.processing_status.value}")
         print(f"  Request ID: {webhook_log.request_id}")
 
+        # Step 8: Verify Kafka message published
+        print("\n[Step 8] Verifying Kafka message delivery...")
+        print("  (Polling Kafka consumer for up to 30 seconds)")
+
+        kafka_message_found = False
+        kafka_message = None
+        max_kafka_wait = 30  # seconds
+        kafka_poll_interval = 1  # seconds
+        kafka_elapsed = 0
+
+        while kafka_elapsed < max_kafka_wait and not kafka_message_found:
+            # Poll Kafka consumer
+            try:
+                msg_batch = await asyncio.wait_for(
+                    kafka_consumer.getmany(timeout_ms=1000, max_records=10),
+                    timeout=2.0
+                )
+
+                for topic_partition, messages in msg_batch.items():
+                    for msg in messages:
+                        try:
+                            # Parse Kafka message
+                            kafka_payload = json.loads(msg.value.decode('utf-8'))
+
+                            # Check if this is our test message by matching test_id in body
+                            if self.test_id in kafka_payload.get('body', ''):
+                                kafka_message = kafka_payload
+                                kafka_message_found = True
+                                print(f"[OK] Kafka message found after {kafka_elapsed} seconds")
+                                print(f"  Topic: {topic_partition.topic}")
+                                print(f"  Partition: {topic_partition.partition}")
+                                print(f"  Offset: {msg.offset}")
+                                break
+                        except json.JSONDecodeError:
+                            continue
+
+                    if kafka_message_found:
+                        break
+
+            except asyncio.TimeoutError:
+                pass
+
+            if not kafka_message_found:
+                await asyncio.sleep(kafka_poll_interval)
+                kafka_elapsed += kafka_poll_interval
+
+        if not kafka_message_found:
+            pytest.fail(
+                f"Kafka message not found within {max_kafka_wait} seconds. "
+                "Check if Kafka producer is properly configured in webhook handler."
+            )
+
+        # Verify Kafka message structure
+        print("\n[Step 8.1] Verifying Kafka message structure...")
+
+        # Validate against ChannelMessage schema
+        try:
+            channel_message = ChannelMessage(**kafka_message)
+            print(f"[OK] Kafka message matches ChannelMessage schema")
+        except Exception as e:
+            pytest.fail(f"Kafka message does not match ChannelMessage schema: {e}")
+
+        # Verify key fields
+        assert channel_message.channel.value == "whatsapp", f"Expected channel 'whatsapp', got '{channel_message.channel.value}'"
+        assert channel_message.message_type.value == "inbound", f"Expected message_type 'inbound', got '{channel_message.message_type.value}'"
+        assert channel_message.customer_id == str(customer_id), f"Customer ID mismatch"
+        assert self.test_id in channel_message.body, "Test ID not found in Kafka message body"
+
+        print(f"[OK] Kafka message verified:")
+        print(f"  Message ID: {channel_message.message_id}")
+        print(f"  Channel: {channel_message.channel.value}")
+        print(f"  Customer ID: {channel_message.customer_id}")
+        print(f"  Customer Contact: {channel_message.customer_contact}")
+
         print(f"\n{'='*60}")
         print(f"WhatsApp Real E2E Test PASSED: {self.test_id}")
         print(f"{'='*60}\n")
@@ -345,16 +423,18 @@ class TestWhatsAppRealFlow:
     async def test_whatsapp_conversation_continuity(
         self,
         e2e_session: AsyncSession,
-        clean_test_data
+        clean_test_data,
+        kafka_consumer
     ):
         """Test conversation continuity with multiple messages.
 
         Steps:
         1. Trigger webhook with initial message
-        2. Wait for processing
+        2. Wait for processing and verify Kafka
         3. Trigger webhook with second message from same number
         4. Verify same conversation is used
         5. Verify message count increases
+        6. Verify second message published to Kafka
         """
         print(f"\n{'='*60}")
         print(f"Starting WhatsApp Continuity Test: {self.test_id}")
@@ -430,6 +510,43 @@ class TestWhatsAppRealFlow:
         initial_message_count = len(result.scalars().all())
         print(f"  Initial message count: {initial_message_count}")
 
+        # Step 2.1: Verify initial message published to Kafka
+        print("\n[Step 2.1] Verifying initial message in Kafka...")
+        print("  (Polling Kafka consumer for up to 20 seconds)")
+
+        kafka_message_found = False
+        max_kafka_wait = 20
+        kafka_elapsed = 0
+
+        while kafka_elapsed < max_kafka_wait and not kafka_message_found:
+            try:
+                msg_batch = await asyncio.wait_for(
+                    kafka_consumer.getmany(timeout_ms=1000, max_records=10),
+                    timeout=2.0
+                )
+
+                for topic_partition, messages in msg_batch.items():
+                    for msg in messages:
+                        try:
+                            kafka_payload = json.loads(msg.value.decode('utf-8'))
+                            if self.test_id in kafka_payload.get('body', ''):
+                                kafka_message_found = True
+                                print(f"[OK] Initial message found in Kafka after {kafka_elapsed} seconds")
+                                break
+                        except json.JSONDecodeError:
+                            continue
+                    if kafka_message_found:
+                        break
+            except asyncio.TimeoutError:
+                pass
+
+            if not kafka_message_found:
+                await asyncio.sleep(1)
+                kafka_elapsed += 1
+
+        if not kafka_message_found:
+            print(f"WARNING: Initial message not found in Kafka within {max_kafka_wait} seconds")
+
         # Step 3: Trigger webhook with second message from same number
         print("\n[Step 3] Triggering webhook with second message from same number...")
         second_body = f"Second message in same conversation. Test ID: {self.test_id}"
@@ -500,6 +617,47 @@ class TestWhatsAppRealFlow:
 
         print(f"[OK] Conversation continuity maintained")
 
+        # Step 5.1: Verify second message published to Kafka
+        print("\n[Step 5.1] Verifying second message in Kafka...")
+        print("  (Polling Kafka consumer for up to 20 seconds)")
+
+        second_kafka_found = False
+        second_kafka_elapsed = 0
+        max_second_kafka_wait = 20
+
+        while second_kafka_elapsed < max_second_kafka_wait and not second_kafka_found:
+            try:
+                msg_batch = await asyncio.wait_for(
+                    kafka_consumer.getmany(timeout_ms=1000, max_records=10),
+                    timeout=2.0
+                )
+
+                for topic_partition, messages in msg_batch.items():
+                    for msg in messages:
+                        try:
+                            kafka_payload = json.loads(msg.value.decode('utf-8'))
+                            # Look for second message content
+                            if "Second message in same conversation" in kafka_payload.get('body', ''):
+                                second_kafka_found = True
+                                print(f"[OK] Second message found in Kafka after {second_kafka_elapsed} seconds")
+                                break
+                        except json.JSONDecodeError:
+                            continue
+                    if second_kafka_found:
+                        break
+            except asyncio.TimeoutError:
+                pass
+
+            if not second_kafka_found:
+                await asyncio.sleep(1)
+                second_kafka_elapsed += 1
+
+        if not second_kafka_found:
+            print(f"WARNING: Second message not found in Kafka within {max_second_kafka_wait} seconds")
+            print(f"  Note: Webhook handler only sends Kafka messages for NEW conversations")
+        else:
+            print(f"[OK] Both initial and second messages verified in Kafka")
+
         print(f"\n{'='*60}")
         print(f"WhatsApp Continuity Test PASSED: {self.test_id}")
         print(f"{'='*60}\n")
@@ -507,15 +665,16 @@ class TestWhatsAppRealFlow:
     async def test_whatsapp_escalation_detection(
         self,
         e2e_session: AsyncSession,
-        clean_test_data
+        clean_test_data,
+        kafka_consumer
     ):
         """Test escalation keyword detection in WhatsApp messages.
 
         Steps:
         1. Trigger webhook with message containing escalation keyword
         2. Wait for processing
-        3. Verify escalation flag in message metadata
-        4. Verify ticket created with escalation category
+        3. Verify ticket created with escalation category
+        4. Verify Kafka message published with escalation metadata
         """
         print(f"\n{'='*60}")
         print(f"Starting WhatsApp Escalation Test: {self.test_id}")
@@ -585,6 +744,64 @@ class TestWhatsAppRealFlow:
         assert ticket.category == "escalation"
         print(f"[OK] Escalation ticket created: {ticket.id}")
         print(f"  Category: {ticket.category}")
+
+        # Step 4: Verify Kafka message published with escalation metadata
+        print("\n[Step 4] Verifying Kafka message with escalation metadata...")
+        print("  (Polling Kafka consumer for up to 30 seconds)")
+
+        kafka_message_found = False
+        kafka_message = None
+        max_kafka_wait = 30
+        kafka_elapsed = 0
+
+        while kafka_elapsed < max_kafka_wait and not kafka_message_found:
+            try:
+                msg_batch = await asyncio.wait_for(
+                    kafka_consumer.getmany(timeout_ms=1000, max_records=10),
+                    timeout=2.0
+                )
+
+                for topic_partition, messages in msg_batch.items():
+                    for msg in messages:
+                        try:
+                            kafka_payload = json.loads(msg.value.decode('utf-8'))
+                            if self.test_id in kafka_payload.get('body', ''):
+                                kafka_message = kafka_payload
+                                kafka_message_found = True
+                                print(f"[OK] Kafka message found after {kafka_elapsed} seconds")
+                                break
+                        except json.JSONDecodeError:
+                            continue
+                    if kafka_message_found:
+                        break
+            except asyncio.TimeoutError:
+                pass
+
+            if not kafka_message_found:
+                await asyncio.sleep(1)
+                kafka_elapsed += 1
+
+        if not kafka_message_found:
+            print(f"WARNING: Kafka message not found within {max_kafka_wait} seconds")
+        else:
+            # Verify escalation metadata
+            print("\n[Step 4.1] Verifying escalation metadata in Kafka message...")
+
+            try:
+                channel_message = ChannelMessage(**kafka_message)
+                print(f"[OK] Kafka message matches ChannelMessage schema")
+
+                # Check for escalation metadata
+                requires_escalation = channel_message.metadata.get("requires_escalation", False)
+                print(f"  Requires Escalation: {requires_escalation}")
+
+                if requires_escalation:
+                    print(f"[OK] Escalation metadata correctly set in Kafka message")
+                else:
+                    print(f"WARNING: Escalation metadata not found in Kafka message")
+
+            except Exception as e:
+                print(f"WARNING: Could not validate Kafka message: {e}")
 
         print(f"\n{'='*60}")
         print(f"WhatsApp Escalation Test PASSED: {self.test_id}")

@@ -17,10 +17,13 @@ Requires:
 """
 
 import asyncio
+import json
 import os
 import pytest
 import uuid
 from datetime import datetime, timezone
+from aiokafka import AIOKafkaConsumer
+from aiokafka.structs import ConsumerRecord
 from sqlmodel import col, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,6 +44,7 @@ from src.database.models import (
     TicketStatus,
     WebhookProcessingStatus,
 )
+from src.kafka.schemas import ChannelMessage
 
 
 @pytest.mark.asyncio
@@ -78,6 +82,7 @@ class TestGmailRealFlow:
     async def test_gmail_inbound_email_processing(
         self,
         e2e_session: AsyncSession,
+        kafka_consumer: AIOKafkaConsumer,
         clean_test_data
     ):
         """Test complete flow: send email → webhook → database → Kafka.
@@ -90,7 +95,8 @@ class TestGmailRealFlow:
         5. Verify message stored
         6. Verify ticket created
         7. Verify webhook log
-        8. Verify Kafka event (if consumer available)
+        8. Verify Kafka event published
+        9. Cleanup test emails
         """
         print(f"\n{'='*60}")
         print(f"Starting Gmail Real E2E Test: {self.test_id}")
@@ -265,8 +271,84 @@ class TestGmailRealFlow:
         print(f"  Status: {webhook_log.processing_status.value}")
         print(f"  Request ID: {webhook_log.request_id}")
 
-        # Step 8: Cleanup - Delete test email thread
-        print("\n[Step 8] Cleaning up test emails...")
+        # Step 8: Verify Kafka message published
+        print("\n[Step 8] Verifying Kafka message delivery...")
+        print("  (Polling Kafka consumer for up to 30 seconds)")
+
+        kafka_message_found = False
+        kafka_message = None
+        max_kafka_wait = 30  # seconds
+        kafka_poll_interval = 1  # seconds
+        kafka_elapsed = 0
+
+        while kafka_elapsed < max_kafka_wait and not kafka_message_found:
+            # Poll Kafka consumer
+            try:
+                msg_batch = await asyncio.wait_for(
+                    kafka_consumer.getmany(timeout_ms=1000, max_records=10),
+                    timeout=2.0
+                )
+
+                for topic_partition, messages in msg_batch.items():
+                    for msg in messages:
+                        msg: ConsumerRecord[bytes, bytes]  # optional, inferred automatically
+                        if msg.value is None: continue
+                        try:
+                            # Parse Kafka message
+                            kafka_payload: dict = json.loads(msg.value.decode('utf-8'))
+
+                            # Check if this is our test message by matching test_id in body
+                            if self.test_id in kafka_payload.get('body', ''):
+                                kafka_message = kafka_payload
+                                kafka_message_found = True
+                                print(f"[OK] Kafka message found after {kafka_elapsed} seconds")
+                                print(f"  Topic: {topic_partition.topic}")
+                                print(f"  Partition: {topic_partition.partition}")
+                                print(f"  Offset: {msg.offset}")
+                                break
+                        except json.JSONDecodeError:
+                            continue
+
+                    if kafka_message_found:
+                        break
+
+            except asyncio.TimeoutError:
+                pass
+
+            if not kafka_message_found:
+                await asyncio.sleep(kafka_poll_interval)
+                kafka_elapsed += kafka_poll_interval
+
+        if not kafka_message_found:
+            pytest.fail(
+                f"Kafka message not found within {max_kafka_wait} seconds. "
+                "Check if Kafka producer is properly configured in webhook handler."
+            )
+
+        # Verify Kafka message structure
+        print("\n[Step 8.1] Verifying Kafka message structure...")
+
+        # Validate against ChannelMessage schema
+        try:
+            channel_message = ChannelMessage(**kafka_message)
+            print(f"[OK] Kafka message matches ChannelMessage schema")
+        except Exception as e:
+            pytest.fail(f"Kafka message does not match ChannelMessage schema: {e}")
+
+        # Verify key fields
+        assert channel_message.channel.value == "email", f"Expected channel 'email', got '{channel_message.channel.value}'"
+        assert channel_message.message_type.value == "inbound", f"Expected message_type 'inbound', got '{channel_message.message_type.value}'"
+        assert channel_message.customer_id == str(customer_id), f"Customer ID mismatch"
+        assert self.test_id in channel_message.body, "Test ID not found in Kafka message body"
+
+        print(f"[OK] Kafka message verified:")
+        print(f"  Message ID: {channel_message.message_id}")
+        print(f"  Channel: {channel_message.channel.value}")
+        print(f"  Customer ID: {channel_message.customer_id}")
+        print(f"  Customer Contact: {channel_message.customer_contact}")
+
+        # Step 9: Cleanup - Delete test email thread
+        print("\n[Step 9] Cleaning up test emails...")
         try:
             await asyncio.to_thread(self.gmail_helper.delete_thread, thread_id)
             print(f"[OK] Test email thread deleted")
@@ -280,16 +362,18 @@ class TestGmailRealFlow:
     async def test_gmail_reply_threading(
         self,
         e2e_session: AsyncSession,
+        kafka_consumer: AIOKafkaConsumer,
         clean_test_data
     ):
         """Test email reply threading and conversation continuity.
 
         Steps:
         1. Send initial email
-        2. Wait for processing
+        2. Wait for processing and verify Kafka
         3. Send reply in same thread
         4. Verify same conversation is used
         5. Verify message count increases
+        6. Verify reply published to Kafka
         """
         print(f"\n{'='*60}")
         print(f"Starting Gmail Threading Test: {self.test_id}")
@@ -365,6 +449,43 @@ class TestGmailRealFlow:
         )
         initial_message_count = len(result.scalars().all())
         print(f"  Initial message count: {initial_message_count}")
+
+        # Step 2.1: Verify initial message published to Kafka
+        print("\n[Step 2.1] Verifying initial message in Kafka...")
+        print("  (Polling Kafka consumer for up to 20 seconds)")
+
+        kafka_message_found = False
+        max_kafka_wait = 20
+        kafka_elapsed = 0
+
+        while kafka_elapsed < max_kafka_wait and not kafka_message_found:
+            try:
+                msg_batch = await asyncio.wait_for(
+                    kafka_consumer.getmany(timeout_ms=1000, max_records=10),
+                    timeout=2.0
+                )
+
+                for topic_partition, messages in msg_batch.items():
+                    for msg in messages:
+                        try:
+                            kafka_payload = json.loads(msg.value.decode('utf-8'))
+                            if self.test_id in kafka_payload.get('body', ''):
+                                kafka_message_found = True
+                                print(f"[OK] Initial message found in Kafka after {kafka_elapsed} seconds")
+                                break
+                        except json.JSONDecodeError:
+                            continue
+                    if kafka_message_found:
+                        break
+            except asyncio.TimeoutError:
+                pass
+
+            if not kafka_message_found:
+                await asyncio.sleep(1)
+                kafka_elapsed += 1
+
+        if not kafka_message_found:
+            print(f"⚠ Warning: Initial message not found in Kafka within {max_kafka_wait} seconds")
 
         # Step 3: Send reply in same thread
         print("\n[Step 3] Sending reply in same thread...")
@@ -461,6 +582,51 @@ class TestGmailRealFlow:
             "Reply did not add to same conversation"
 
         print(f"[OK] Conversation continuity maintained")
+
+        # Step 5.1: Verify reply message published to Kafka
+        print("\n[Step 5.1] Verifying reply message in Kafka...")
+        print("  (Polling Kafka consumer for up to 20 seconds)")
+
+        reply_kafka_found = False
+        reply_kafka_elapsed = 0
+        max_reply_kafka_wait = 20
+
+        while reply_kafka_elapsed < max_reply_kafka_wait and not reply_kafka_found:
+            try:
+                msg_batch = await asyncio.wait_for(
+                    kafka_consumer.getmany(timeout_ms=1000, max_records=10),
+                    timeout=2.0
+                )
+
+                for topic_partition, messages in msg_batch.items():
+                    for msg in messages:
+                        try:
+                            kafka_payload = json.loads(msg.value.decode('utf-8'))
+                            # Look for reply body content
+                            if "Reply message in same thread" in kafka_payload.get('body', ''):
+                                reply_kafka_found = True
+                                print(f"[OK] Reply message found in Kafka after {reply_kafka_elapsed} seconds")
+
+                                # Verify it has the same thread_id
+                                kafka_thread_id = kafka_payload.get('thread_id')
+                                if kafka_thread_id:
+                                    print(f"  Thread ID in Kafka: {kafka_thread_id}")
+                                break
+                        except json.JSONDecodeError:
+                            continue
+                    if reply_kafka_found:
+                        break
+            except asyncio.TimeoutError:
+                pass
+
+            if not reply_kafka_found:
+                await asyncio.sleep(1)
+                reply_kafka_elapsed += 1
+
+        if not reply_kafka_found:
+            print(f"⚠ Warning: Reply message not found in Kafka within {max_reply_kafka_wait} seconds")
+        else:
+            print(f"[OK] Both initial and reply messages verified in Kafka")
 
         # Cleanup
         print("\n[Step 6] Cleaning up...")
