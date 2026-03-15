@@ -160,18 +160,33 @@ async def clean_test_data_fixture(e2e_session: AsyncSession):
     """Clean up test data before and after E2E tests."""
     from sqlmodel import select, delete
 
-    # Test identifiers used in E2E tests
-    test_emails = [
+    # Test identifiers from environment variables
+    test_emails = []
+    test_phones = []
+
+    # Gmail E2E test emails
+    sender_email = os.getenv("GMAIL_TEST_SENDER_EMAIL")
+    receiver_email = os.getenv("GMAIL_TEST_RECEIVER_EMAIL")
+    if sender_email:
+        test_emails.append(sender_email)
+    if receiver_email:
+        test_emails.append(receiver_email)
+
+    # WhatsApp E2E test phone
+    whatsapp_from = os.getenv("TWILIO_TEST_FROM_NUMBER", "")
+    if whatsapp_from:
+        # Remove whatsapp: prefix if present
+        phone = whatsapp_from.replace("whatsapp:", "")
+        test_phones.append(phone)
+
+    # Fallback hardcoded values for backward compatibility
+    test_emails.extend([
         "alice@example.com",
         "ratelimit@example.com",
         "reopen@example.com",
         "continuity@example.com",
         "bob@example.com"
-    ]
-
-    test_phones = [
-        "+1234567890"
-    ]
+    ])
 
     async def cleanup():
         """Delete all test data for test identifiers."""

@@ -212,11 +212,6 @@ async def receive_whatsapp_message(
             role=MessageRole.CUSTOMER,
             content=payload.get("Body", ""),
             delivery_status=DeliveryStatus.DELIVERED,
-            metadata_={
-                "message_sid": payload.get("MessageSid"),
-                "profile_name": payload.get("ProfileName"),
-                "num_media": payload.get("NumMedia", "0")
-            }
         )
         session.add(message)
 
@@ -226,9 +221,10 @@ async def receive_whatsapp_message(
             .where(Ticket.conversation_id == conversation.id)
             .where(col(Ticket.status).in_([TicketStatus.OPEN, TicketStatus.IN_PROGRESS]))
         )
-        ticket = ticket_result.first()
+        ticket = ticket_result.scalars().first()
 
         # Process message through handler
+        requires_escalation = False
         if whatsapp_handler:
             channel_message = await whatsapp_handler.process_inbound_message(payload)
             channel_message.customer_id = str(customer.id)
@@ -236,20 +232,20 @@ async def receive_whatsapp_message(
             # Check for escalation
             requires_escalation = channel_message.metadata.get("requires_escalation", False)
 
-            # Create ticket if escalation detected and no active ticket
-            if requires_escalation and not ticket:
-                ticket = Ticket(
-                    conversation_id=conversation.id,
-                    customer_id=customer.id,
-                    source_channel=Channel.WHATSAPP,
-                    category="escalation",
-                    priority=Priority.HIGH,
-                    status=TicketStatus.OPEN,
-                    metadata_={"escalation_reason": "customer_requested"}
-                )
-                session.add(ticket)
+        # Create ticket if new conversation (matching Gmail behavior)
+        if not existing_conversation and not ticket:
+            ticket = Ticket(
+                conversation_id=conversation.id,
+                customer_id=customer.id,
+                source_channel=Channel.WHATSAPP,
+                category="escalation" if requires_escalation else "general",
+                priority=Priority.HIGH if requires_escalation else Priority.MEDIUM,
+                status=TicketStatus.OPEN,
+            )
+            session.add(ticket)
 
-                # Update conversation status
+            # Update conversation status if escalated
+            if requires_escalation:
                 conversation.status = ConversationStatus.ESCALATED
 
             # Send to Kafka
@@ -303,7 +299,7 @@ async def receive_whatsapp_message(
 async def receive_whatsapp_status(
     request: Request,
     x_twilio_signature: Optional[str] = Header(None),
-    session = Depends(get_session_dependency)
+    session: AsyncSession = Depends(get_session_dependency)
 ):
     """Receive WhatsApp delivery status callback from Twilio.
 
@@ -387,23 +383,6 @@ async def receive_whatsapp_status(
         if message:
             # Update delivery status
             message.delivery_status = delivery_status
-
-            # Store additional status details in metadata if field exists
-            # Note: Message model may not have metadata_ field in all versions
-            if hasattr(message, 'metadata_'):
-                if not message.metadata_:
-                    message.metadata_ = {}
-
-                message.metadata_["last_status"] = message_status
-                message.metadata_["status_updated_at"] = datetime.now(timezone.utc).isoformat()
-
-                if message_status == "read":
-                    message.metadata_["read_at"] = datetime.now(timezone.utc).isoformat()
-
-                if payload.get("ErrorCode"):
-                    message.metadata_["error_code"] = payload["ErrorCode"]
-                    message.metadata_["error_message"] = payload.get("ErrorMessage")
-
             await session.commit()
 
             logger.info(

@@ -342,7 +342,7 @@ class TestGmailRealFlow:
 
             print(f"  Waiting... ({elapsed}s / {max_wait}s)")
 
-        if not message_found:
+        if not message_found or not initial_message:
             pytest.skip("Initial email not processed yet - webhook may be delayed")
 
         # Get the conversation from the message

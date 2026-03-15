@@ -408,7 +408,7 @@ class RateLimitEntry(SQLModel, table=True):
 
 class GmailWatchState(SQLModel, table=True):
     """Tracks Gmail watch state and last processed history ID per email account."""
-    __tablename__ = "gmail_watch_states"
+    __tablename__ = "gmail_watch_states"  # type: ignore[assignment]
 
     id: uuid.UUID = Field(
         default_factory=uuid.uuid4,
