@@ -213,7 +213,7 @@ async def clean_test_data_fixture(e2e_session: AsyncSession):
 
         # Delete all data for collected customer IDs
         for customer_id in customer_ids:
-            # Delete in order: messages, tickets, conversations, identifiers, customer
+            # Delete in order: messages, tickets, agent_metrics, conversations, identifiers, customer
             await e2e_session.execute(
                 delete(Message).where(
                     col(Message.conversation_id).in_(
@@ -223,6 +223,15 @@ async def clean_test_data_fixture(e2e_session: AsyncSession):
             )
             await e2e_session.execute(
                 delete(Ticket).where(col(Ticket.customer_id) == customer_id)
+            )
+            # Delete agent_metrics before conversations (foreign key constraint)
+            from src.database.models import AgentMetric
+            await e2e_session.execute(
+                delete(AgentMetric).where(
+                    col(AgentMetric.conversation_id).in_(
+                        select(Conversation.id).where(Conversation.customer_id == customer_id)
+                    )
+                )
             )
             await e2e_session.execute(
                 delete(Conversation).where(col(Conversation.customer_id) == customer_id)

@@ -19,6 +19,7 @@ from .channels.twilio_client import TwilioClient
 from .channels.whatsapp_handler import WhatsAppHandler
 from .channels.gmail_handler import GmailHandler
 from .kafka.producer import KafkaMessageProducer
+from .services.kafka_consumer_service import KafkaConsumerService
 from .utils.rate_limiter import RateLimiter
 from .middleware.correlation_id import CorrelationIdMiddleware, configure_structured_logging
 
@@ -199,17 +200,36 @@ async def lifespan(app: FastAPI):
             )
             print("[GMAIL] Initializing Gmail API client...")
             await gmail_handler_instance.initialize()
-            print("[GMAIL] ✓ Gmail handler initialized successfully")
-            logger.info("Gmail handler initialized successfully ✓")
+            print("[GMAIL] Gmail handler initialized successfully")
+            logger.info("Gmail handler initialized successfully")
         else:
             print("[GMAIL] No credentials configured - email channel disabled")
             logger.info("Gmail credentials not configured - email channel disabled")
     except Exception as e:
-        print(f"[GMAIL] ✗ Failed to initialize: {e}")
+        print(f"[GMAIL] Failed to initialize: {e}")
         import traceback
         traceback.print_exc()
         logger.error(f"Failed to initialize Gmail handler: {e}", exc_info=True)
         logger.warning("Email channel will not be available")
+
+    # Step 7: Initialize Kafka consumer service
+    kafka_consumer_service = None
+    try:
+        if kafka_producer_instance:
+            logger.info("Initializing Kafka consumer service...")
+            kafka_consumer_service = KafkaConsumerService(
+                bootstrap_servers=settings.kafka_bootstrap_servers,
+                group_id="customer-success-agent-group",
+                gmail_handler=gmail_handler_instance,
+                whatsapp_handler=whatsapp_handler_instance,
+            )
+            await kafka_consumer_service.start()
+            logger.info("Kafka consumer service started successfully")
+        else:
+            logger.warning("Kafka producer not available - consumer service disabled")
+    except Exception as e:
+        logger.warning(f"Failed to start Kafka consumer service: {e}")
+        logger.warning("Agent will not automatically process messages from Kafka")
 
     # Wire up handlers to webhook modules
     if kafka_producer_instance:
@@ -234,11 +254,20 @@ async def lifespan(app: FastAPI):
     # Store instances in app.state for health check access
     app.state.kafka_producer = kafka_producer_instance
     app.state.redis_client = redis_client
+    app.state.kafka_consumer_service = kafka_consumer_service
 
     yield
 
     # Shutdown
     logger.info("Shutting down...")
+
+    # Stop Kafka consumer service
+    if kafka_consumer_service:
+        try:
+            await kafka_consumer_service.stop()
+            logger.info("Kafka consumer service stopped")
+        except Exception as e:
+            logger.error(f"Error stopping Kafka consumer service: {e}")
 
     # Stop Kafka producer
     if kafka_producer_instance:

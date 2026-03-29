@@ -305,8 +305,9 @@ async def process_gmail_notification_background(
                 await session.commit()
                 await session.refresh(message)
 
-                # Update channel message with customer ID
+                # Update channel message with customer ID and conversation ID
                 channel_message.customer_id = str(customer.id)
+                channel_message.metadata["conversation_id"] = str(conversation.id)
 
                 # Send to Kafka (critical - webhook will fail if Kafka fails, triggering Pub/Sub retry)
                 if kafka_producer:

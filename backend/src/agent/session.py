@@ -79,6 +79,7 @@ class PostgresSession(SessionABC):
                         "type": "function_call_output",
                         "call_id": tc["call_id"],
                         "output": tc["output"],
+                        "name": tc.get("name", ""),  # Required by Gemini API
                     })
 
         logger.debug(f"Retrieved {len(sdk_messages)} messages for conversation {self.conversation_id}")

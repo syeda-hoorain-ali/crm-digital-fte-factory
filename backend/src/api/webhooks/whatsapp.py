@@ -228,6 +228,7 @@ async def receive_whatsapp_message(
         if whatsapp_handler:
             channel_message = await whatsapp_handler.process_inbound_message(payload)
             channel_message.customer_id = str(customer.id)
+            channel_message.metadata["conversation_id"] = str(conversation.id)
 
             # Check for escalation
             requires_escalation = channel_message.metadata.get("requires_escalation", False)
@@ -282,6 +283,9 @@ async def receive_whatsapp_message(
             extra={"request_id": request_id},
             exc_info=True
         )
+
+        # Rollback the session first to clear any pending transaction state
+        await session.rollback()
 
         # Update webhook log
         if 'webhook_log' in locals() and webhook_log:

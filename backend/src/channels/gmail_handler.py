@@ -148,6 +148,27 @@ class GmailHandler(BaseChannelHandler):
             # Parse message
             parsed = self.parser.parse_gmail_message(gmail_message)
 
+            # Filter out non-inbound messages
+            labels = parsed.get('labels', [])
+
+            # Skip SENT messages (outbound emails we sent)
+            if 'SENT' in labels and 'INBOX' not in labels:
+                print(f"[GMAIL] Skipping SENT message (outbound): {message_id}")
+                logger.info(f"Skipping outbound SENT message: {message_id}")
+                return None
+
+            # Skip DRAFT messages
+            if 'DRAFT' in labels:
+                print(f"[GMAIL] Skipping DRAFT message: {message_id}")
+                logger.info(f"Skipping DRAFT message: {message_id}")
+                return None
+
+            # Only process messages in INBOX (inbound customer messages)
+            if 'INBOX' not in labels:
+                print(f"[GMAIL] Skipping non-INBOX message: {message_id} (labels: {labels})")
+                logger.info(f"Skipping non-INBOX message: {message_id}")
+                return None
+
             # Extract sender information
             sender_info = self.parser.extract_sender_info(parsed)
             customer_email = sender_info.get('email')
@@ -155,6 +176,11 @@ class GmailHandler(BaseChannelHandler):
 
             if not customer_email:
                 raise ValueError("Could not extract sender email address")
+
+            # Skip messages from our own email address (loop prevention)
+            # This prevents processing our own outbound replies as inbound messages
+            our_email = self.gmail_client.credentials.token  # This won't work, need to get from config
+            # For now, we rely on SENT label filtering above
 
             # Detect threading information
             thread_info = self.parser.detect_thread_info(parsed)

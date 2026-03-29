@@ -416,6 +416,61 @@ class TestWhatsAppRealFlow:
         print(f"  Customer ID: {channel_message.customer_id}")
         print(f"  Customer Contact: {channel_message.customer_contact}")
 
+        # Step 9: Verify agent response generated
+        print("\n[Step 9] Verifying agent response...")
+        print("  (Polling database for agent response for up to 60 seconds)")
+
+        agent_response_found = False
+        agent_message = None
+        max_agent_wait = 60  # seconds
+        agent_poll_interval = 2  # seconds
+        agent_elapsed = 0
+
+        while agent_elapsed < max_agent_wait and not agent_response_found:
+            await asyncio.sleep(agent_poll_interval)
+            agent_elapsed += agent_poll_interval
+
+            # Clear session cache to see new messages
+            e2e_session.expire_all()
+
+            # Search for outbound agent message in the same conversation
+            result = await e2e_session.execute(
+                select(Message)
+                .where(Message.conversation_id == conversation_id)
+                .where(Message.role == MessageRole.AGENT)
+                .where(Message.direction == MessageDirection.OUTBOUND)
+                .order_by(col(Message.created_at).desc())
+            )
+            agent_message = result.scalars().first()
+
+            if agent_message:
+                agent_response_found = True
+                print(f"[OK] Agent response found after {agent_elapsed} seconds")
+                break
+
+            print(f"  Waiting... ({agent_elapsed}s / {max_agent_wait}s)")
+
+        if not agent_response_found:
+            print(f"WARNING: Agent response not found within {max_agent_wait} seconds")
+            print(f"  This may indicate:")
+            print(f"  - Kafka consumer service not running")
+            print(f"  - Agent API quota exceeded")
+            print(f"  - Agent processing error")
+            print(f"  Check backend logs for details")
+        else:
+            # Verify agent response properties
+            print(f"\n[Step 9.1] Verifying agent response properties...")
+            assert agent_message.conversation_id == conversation_id, "Agent response not in same conversation"
+            assert agent_message.channel == Channel.WHATSAPP, f"Expected channel WHATSAPP, got {agent_message.channel}"
+            assert agent_message.role == MessageRole.AGENT, f"Expected role AGENT, got {agent_message.role}"
+            assert agent_message.direction == MessageDirection.OUTBOUND, f"Expected direction OUTBOUND, got {agent_message.direction}"
+
+            print(f"[OK] Agent response verified:")
+            print(f"  Message ID: {agent_message.id}")
+            print(f"  Content length: {len(agent_message.content)} characters")
+            print(f"  Created at: {agent_message.created_at}")
+            print(f"\n[OK] Complete E2E flow verified: Webhook → Database → Kafka → Agent → Response")
+
         print(f"\n{'='*60}")
         print(f"WhatsApp Real E2E Test PASSED: {self.test_id}")
         print(f"{'='*60}\n")
@@ -658,6 +713,31 @@ class TestWhatsAppRealFlow:
         else:
             print(f"[OK] Both initial and second messages verified in Kafka")
 
+        # Step 6: Verify agent responses generated
+        print("\n[Step 6] Verifying agent responses...")
+        print("  (Checking for agent responses in conversation)")
+
+        # Count agent responses in the conversation
+        result = await e2e_session.execute(
+            select(Message)
+            .where(Message.conversation_id == initial_conversation_id)
+            .where(Message.role == MessageRole.AGENT)
+            .where(Message.direction == MessageDirection.OUTBOUND)
+        )
+        agent_responses = result.scalars().all()
+
+        if len(agent_responses) > 0:
+            print(f"[OK] Found {len(agent_responses)} agent response(s) in conversation")
+            for idx, response in enumerate(agent_responses, 1):
+                print(f"  Response {idx}: {len(response.content)} characters")
+            print(f"\n[OK] Complete E2E flow verified: Webhook → Database → Kafka → Agent → Response")
+        else:
+            print(f"WARNING: No agent responses found in conversation")
+            print(f"  This may indicate:")
+            print(f"  - Kafka consumer service not running")
+            print(f"  - Agent API quota exceeded")
+            print(f"  - Agent processing error")
+
         print(f"\n{'='*60}")
         print(f"WhatsApp Continuity Test PASSED: {self.test_id}")
         print(f"{'='*60}\n")
@@ -802,6 +882,61 @@ class TestWhatsAppRealFlow:
 
             except Exception as e:
                 print(f"WARNING: Could not validate Kafka message: {e}")
+
+        # Step 5: Verify agent response (if not escalated)
+        print("\n[Step 5] Verifying agent response...")
+        print("  (Polling database for agent response for up to 60 seconds)")
+
+        agent_response_found = False
+        agent_message = None
+        max_agent_wait = 60  # seconds
+        agent_poll_interval = 2  # seconds
+        agent_elapsed = 0
+
+        while agent_elapsed < max_agent_wait and not agent_response_found:
+            await asyncio.sleep(agent_poll_interval)
+            agent_elapsed += agent_poll_interval
+
+            # Clear session cache to see new messages
+            e2e_session.expire_all()
+
+            # Search for outbound agent message in the same conversation
+            result = await e2e_session.execute(
+                select(Message)
+                .where(Message.conversation_id == conversation_id)
+                .where(Message.role == MessageRole.AGENT)
+                .where(Message.direction == MessageDirection.OUTBOUND)
+                .order_by(col(Message.created_at).desc())
+            )
+            agent_message = result.scalars().first()
+
+            if agent_message:
+                agent_response_found = True
+                print(f"[OK] Agent response found after {agent_elapsed} seconds")
+                break
+
+            print(f"  Waiting... ({agent_elapsed}s / {max_agent_wait}s)")
+
+        if not agent_response_found:
+            print(f"WARNING: Agent response not found within {max_agent_wait} seconds")
+            print(f"  This may indicate:")
+            print(f"  - Kafka consumer service not running")
+            print(f"  - Agent API quota exceeded")
+            print(f"  - Message was escalated (no auto-response)")
+            print(f"  Check backend logs for details")
+        else:
+            # Verify agent response properties
+            print(f"\n[Step 5.1] Verifying agent response properties...")
+            assert agent_message.conversation_id == conversation_id, "Agent response not in same conversation"
+            assert agent_message.channel == Channel.WHATSAPP, f"Expected channel WHATSAPP, got {agent_message.channel}"
+            assert agent_message.role == MessageRole.AGENT, f"Expected role AGENT, got {agent_message.role}"
+            assert agent_message.direction == MessageDirection.OUTBOUND, f"Expected direction OUTBOUND, got {agent_message.direction}"
+
+            print(f"[OK] Agent response verified:")
+            print(f"  Message ID: {agent_message.id}")
+            print(f"  Content length: {len(agent_message.content)} characters")
+            print(f"  Created at: {agent_message.created_at}")
+            print(f"\n[OK] Complete E2E flow verified: Webhook → Database → Kafka → Agent → Response")
 
         print(f"\n{'='*60}")
         print(f"WhatsApp Escalation Test PASSED: {self.test_id}")

@@ -28,6 +28,7 @@ from sqlmodel import col, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tests.helpers.gmail_test_helper import GmailTestHelper
+from tests.helpers.webhook_trigger import WebhookTrigger
 from src.database.models import (
     Customer,
     CustomerIdentifier,
@@ -120,6 +121,32 @@ class TestGmailRealFlow:
         print(f"[OK] Email sent successfully")
         print(f"  Message ID: {message_id}")
         print(f"  Thread ID: {thread_id}")
+
+        # Step 1.5: Get Gmail history ID and manually trigger webhook
+        print("\n[Step 1.5] Manually triggering webhook (Gmail Pub/Sub not available on localhost)...")
+
+        # Get current Gmail profile to get history ID
+        gmail_profile = await asyncio.to_thread(
+            self.gmail_helper.gmail_client.service.users().getProfile(userId='me').execute
+        )
+        history_id = gmail_profile.get('historyId')
+        print(f"  Current history ID: {history_id}")
+
+        # Manually trigger webhook
+        webhook_trigger = WebhookTrigger(base_url="http://localhost:8080")
+        try:
+            response = await webhook_trigger.trigger_gmail_webhook(
+                history_id=history_id,
+                email_address=self.app_email
+            )
+            print(f"  Webhook triggered: {response.status_code}")
+            if response.status_code != 200:
+                print(f"  Webhook response: {response.text}")
+        finally:
+            await webhook_trigger.close()
+
+        # Wait a bit for background processing
+        await asyncio.sleep(3)
 
         # Step 2: Wait for webhook processing (poll database for message)
         print("\n[Step 2] Waiting for webhook to process email...")
