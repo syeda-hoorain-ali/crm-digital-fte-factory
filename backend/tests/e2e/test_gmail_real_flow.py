@@ -105,6 +105,7 @@ class TestGmailRealFlow:
 
         # Step 1: Send test email
         print("\n[Step 1] Sending test email...")
+        assert self.app_email is not None, "Application email not configured"
         test_body = f"This is a test email for E2E testing. Test ID: {self.test_id}"
 
         # Gmail API is synchronous, run in thread pool
@@ -126,13 +127,15 @@ class TestGmailRealFlow:
         print("\n[Step 1.5] Manually triggering webhook (Gmail Pub/Sub not available on localhost)...")
 
         # Get current Gmail profile to get history ID
+        assert self.gmail_helper.service is not None, "Gmail service not initialized"
         gmail_profile = await asyncio.to_thread(
-            self.gmail_helper.gmail_client.service.users().getProfile(userId='me').execute
+            self.gmail_helper.service.users().getProfile(userId='me').execute
         )
         history_id = gmail_profile.get('historyId')
         print(f"  Current history ID: {history_id}")
 
         # Manually trigger webhook
+        assert self.app_email is not None, "Application email not configured"
         webhook_trigger = WebhookTrigger(base_url="http://localhost:8080")
         try:
             response = await webhook_trigger.trigger_gmail_webhook(
@@ -356,6 +359,7 @@ class TestGmailRealFlow:
         print("\n[Step 8.1] Verifying Kafka message structure...")
 
         # Validate against ChannelMessage schema
+        assert kafka_message is not None, "Kafka message should have been found"
         try:
             channel_message = ChannelMessage(**kafka_message)
             print(f"[OK] Kafka message matches ChannelMessage schema")
@@ -408,6 +412,7 @@ class TestGmailRealFlow:
 
         # Step 1: Send initial email
         print("\n[Step 1] Sending initial email...")
+        assert self.app_email is not None, "Application email not configured"
         initial_body = f"Initial message for threading test. Test ID: {self.test_id}"
 
         sent_message_1 = await asyncio.to_thread(
@@ -494,6 +499,8 @@ class TestGmailRealFlow:
 
                 for topic_partition, messages in msg_batch.items():
                     for msg in messages:
+                        if msg.value is None:
+                            continue
                         try:
                             kafka_payload = json.loads(msg.value.decode('utf-8'))
                             if self.test_id in kafka_payload.get('body', ''):
@@ -516,6 +523,7 @@ class TestGmailRealFlow:
 
         # Step 3: Send reply in same thread
         print("\n[Step 3] Sending reply in same thread...")
+        assert self.app_email is not None, "Application email not configured"
         reply_body = f"Reply message in same thread. Test ID: {self.test_id}"
 
         # Use proper MIME headers for threading
@@ -627,6 +635,8 @@ class TestGmailRealFlow:
 
                 for topic_partition, messages in msg_batch.items():
                     for msg in messages:
+                        if msg.value is None:
+                            continue
                         try:
                             kafka_payload = json.loads(msg.value.decode('utf-8'))
                             # Look for reply body content

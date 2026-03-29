@@ -398,6 +398,7 @@ class TestWhatsAppRealFlow:
         print("\n[Step 8.1] Verifying Kafka message structure...")
 
         # Validate against ChannelMessage schema
+        assert kafka_message is not None, "Kafka message should have been found"
         try:
             channel_message = ChannelMessage(**kafka_message)
             print(f"[OK] Kafka message matches ChannelMessage schema")
@@ -460,6 +461,7 @@ class TestWhatsAppRealFlow:
         else:
             # Verify agent response properties
             print(f"\n[Step 9.1] Verifying agent response properties...")
+            assert agent_message
             assert agent_message.conversation_id == conversation_id, "Agent response not in same conversation"
             assert agent_message.channel == Channel.WHATSAPP, f"Expected channel WHATSAPP, got {agent_message.channel}"
             assert agent_message.role == MessageRole.AGENT, f"Expected role AGENT, got {agent_message.role}"
@@ -867,6 +869,7 @@ class TestWhatsAppRealFlow:
             # Verify escalation metadata
             print("\n[Step 4.1] Verifying escalation metadata in Kafka message...")
 
+            assert kafka_message is not None, "Kafka message should have been found"
             try:
                 channel_message = ChannelMessage(**kafka_message)
                 print(f"[OK] Kafka message matches ChannelMessage schema")
@@ -927,6 +930,7 @@ class TestWhatsAppRealFlow:
         else:
             # Verify agent response properties
             print(f"\n[Step 5.1] Verifying agent response properties...")
+            assert agent_message
             assert agent_message.conversation_id == conversation_id, "Agent response not in same conversation"
             assert agent_message.channel == Channel.WHATSAPP, f"Expected channel WHATSAPP, got {agent_message.channel}"
             assert agent_message.role == MessageRole.AGENT, f"Expected role AGENT, got {agent_message.role}"

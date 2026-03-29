@@ -3,7 +3,7 @@
 from datetime import datetime
 from enum import Enum
 from typing import Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Channel(str, Enum):
@@ -68,7 +68,8 @@ class ChannelMessage(BaseModel):
     # Delivery tracking
     delivery_status: str | None = Field(None, description="sent, delivered, failed, bounced")
 
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat()
         }
+    )

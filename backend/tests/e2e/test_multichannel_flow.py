@@ -49,7 +49,6 @@ class TestMultiChannelE2E:
         """
         import json
         import asyncio
-        print() # print empty line
 
         # Step 1: Customer submits web form
         web_form_data = {
@@ -65,7 +64,6 @@ class TestMultiChannelE2E:
         assert response.status_code == 200
         web_form_response = response.json()
         ticket_id = web_form_response["ticket_id"]
-        print("\nweb_form_response:", web_form_response)
 
         # Step 1.5: Verify message sent to Kafka
         kafka_message = None
@@ -73,7 +71,8 @@ class TestMultiChannelE2E:
             # Wait for message with explicit timeout
             async def consume_message():
                 async for msg in kafka_consumer:
-                    print("\nmsg:", msg)
+                    if msg.value is None:
+                        continue
                     message_data = json.loads(msg.value.decode('utf-8'))
                     # Check if this is our message
                     if message_data.get('customer_contact') == 'alice@example.com':
@@ -97,7 +96,6 @@ class TestMultiChannelE2E:
         customer = await identification_service.find_customer_by_any_identifier(
             email="alice@example.com"
         )
-        print("\ncustomer:", customer)
         assert customer is not None
         assert customer.email == "alice@example.com"
         assert customer.name == "Alice Johnson"
@@ -108,7 +106,6 @@ class TestMultiChannelE2E:
             customer_id=customer.id,
             max_age_hours=24
         )
-        print("\nconversations:", conversations)
         assert len(conversations) == 1
         assert conversations[0].initial_channel == Channel.WEB_FORM
 
@@ -370,6 +367,8 @@ class TestMultiChannelE2E:
         try:
             async def consume_messages():
                 async for msg in kafka_consumer:
+                    if msg.value is None:
+                        continue
                     message_data = json.loads(msg.value.decode('utf-8'))
                     if message_data.get('customer_contact') == customer_email:
                         messages_received.append(message_data)
