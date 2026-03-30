@@ -98,8 +98,7 @@ class TestHMACValidator:
         validator = HMACValidator("test_secret")
         body = b"request body"
 
-        is_valid = validator.verify_request(body, None)
-
+        is_valid = validator.verify_request(body, None) # type: ignore
         assert is_valid is False
 
     def test_constant_time_comparison(self):

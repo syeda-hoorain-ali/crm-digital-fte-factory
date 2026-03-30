@@ -117,8 +117,7 @@ async def get_ticket(
 async def update_ticket(
     session: AsyncSession,
     ticket_id: UUID,
-    title: str | None = None,
-    description: str | None = None,
+    category: str | None = None,
     priority: Priority | None = None,
     status: TicketStatus | None = None,
     resolution: str | None = None,
@@ -129,8 +128,7 @@ async def update_ticket(
     Args:
         session: Database session
         ticket_id: Ticket UUID
-        title: New ticket title (optional)
-        description: New ticket description (optional)
+        category: New ticket category (optional)
         priority: New ticket priority (optional)
         status: New ticket status (optional)
         resolution: Resolution notes (optional)
@@ -143,10 +141,8 @@ async def update_ticket(
     if not ticket:
         return None
 
-    if title is not None:
-        ticket.title = title
-    if description is not None:
-        ticket.description = description
+    if category is not None:
+        ticket.category = category
     if priority is not None:
         ticket.priority = priority
     if status is not None:

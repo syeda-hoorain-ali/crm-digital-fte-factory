@@ -43,17 +43,17 @@ class ChannelMessage(BaseModel):
     direction: MessageDirection = Field(..., description="Message direction")
 
     # Customer information
-    customer_id: str | None = Field(None, description="Customer UUID if identified")
+    customer_id: str | None = Field(default=None, description="Customer UUID if identified")
     customer_contact: str = Field(..., description="Email address or phone number")
-    customer_name: str | None = Field(None, description="Customer name if available")
+    customer_name: str | None = Field(default=None, description="Customer name if available")
 
     # Message content
-    subject: str | None = Field(None, description="Email subject or message title")
+    subject: str | None = Field(default=None, description="Email subject or message title")
     body: str = Field(..., description="Message content")
 
     # Threading
-    thread_id: str | None = Field(None, description="Conversation thread identifier")
-    parent_message_id: str | None = Field(None, description="Parent message in thread")
+    thread_id: str | None = Field(default=None, description="Conversation thread identifier")
+    parent_message_id: str | None = Field(default=None, description="Parent message in thread")
 
     # Attachments
     attachments: list[AttachmentMetadata] = Field(default_factory=list)
@@ -63,10 +63,10 @@ class ChannelMessage(BaseModel):
 
     # Timestamps
     timestamp: datetime = Field(..., description="Message timestamp")
-    received_at: datetime | None = Field(None, description="When system received message")
+    received_at: datetime | None = Field(default=None, description="When system received message")
 
     # Delivery tracking
-    delivery_status: str | None = Field(None, description="sent, delivered, failed, bounced")
+    delivery_status: str | None = Field(default=None, description="sent, delivered, failed, bounced")
 
     model_config = ConfigDict(
         json_encoders={

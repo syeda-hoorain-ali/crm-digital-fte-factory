@@ -103,6 +103,10 @@ class TestRateLimiter:
         customer_id = "customer-123"
         channel = "email"
 
+        # Mock zadd and expire as AsyncMock
+        mock_redis.zadd = AsyncMock()
+        mock_redis.expire = AsyncMock()
+
         await rate_limiter.record_request(customer_id, channel)
 
         # Verify zadd was called
@@ -120,7 +124,7 @@ class TestRateLimiter:
         # Mock oldest entry timestamp (50 seconds ago)
         now = time.time()
         oldest_timestamp = now - 50
-        mock_redis.zrange.return_value = [(b"entry", oldest_timestamp)]
+        mock_redis.zrange = AsyncMock(return_value=[(b"entry", oldest_timestamp)])
 
         retry_after = await rate_limiter.get_retry_after(customer_id, channel)
 
@@ -134,7 +138,7 @@ class TestRateLimiter:
         customer_id = "customer-123"
         channel = "email"
 
-        mock_redis.zrange.return_value = []
+        mock_redis.zrange = AsyncMock(return_value=[])
 
         retry_after = await rate_limiter.get_retry_after(customer_id, channel)
 

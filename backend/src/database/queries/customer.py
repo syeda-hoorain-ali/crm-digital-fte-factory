@@ -52,7 +52,7 @@ async def create_customer(
             name=name,
             email=email,
             phone=phone,
-            meta_data=meta_data or {},
+            metadata_=meta_data or {},
         )
         session.add(customer)
         await session.flush()

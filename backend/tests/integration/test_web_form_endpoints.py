@@ -32,7 +32,7 @@ class TestWebFormSubmitEndpoint:
     """Integration tests for POST /support/submit endpoint (T048)."""
 
     @pytest.mark.asyncio
-    async def test_submit_success_creates_all_records(self, db_session):
+    async def test_submit_success_creates_all_records(self, session):
         """Test successful submission creates customer, conversation, message, and ticket."""
         form_data = {
             "name": "John Doe",
@@ -100,7 +100,7 @@ class TestWebFormSubmitEndpoint:
                 assert ticket.status == TicketStatus.OPEN
 
     @pytest.mark.asyncio
-    async def test_submit_creates_webhook_delivery_log(self, db_session):
+    async def test_submit_creates_webhook_delivery_log(self, session):
         """Test submission creates WebhookDeliveryLog entry."""
         form_data = {
             "name": "Jane Smith",
@@ -215,7 +215,7 @@ class TestWebFormSubmitEndpoint:
             assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_submit_existing_customer_reuses_record(self, db_session):
+    async def test_submit_existing_customer_reuses_record(self, session):
         """Test submission with existing customer reuses customer record."""
         # Create existing customer
         async with get_session() as session:
@@ -312,7 +312,7 @@ class TestWebFormTicketStatusEndpoint:
     """Integration tests for GET /support/ticket/{ticket_id} endpoint (T048)."""
 
     @pytest.mark.asyncio
-    async def test_get_ticket_status_success(self, db_session):
+    async def test_get_ticket_status_success(self, session):
         """Test retrieving ticket status successfully."""
         # Create test data
         async with get_session() as session:
@@ -391,7 +391,7 @@ class TestWebFormTicketStatusEndpoint:
             assert "Invalid ticket ID format" in response.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_get_ticket_status_multiple_messages(self, db_session):
+    async def test_get_ticket_status_multiple_messages(self, session):
         """Test retrieving ticket with multiple messages."""
         # Create test data with multiple messages
         async with get_session() as session:
@@ -458,7 +458,7 @@ class TestWebFormTicketStatusEndpoint:
             assert data["messages"][2]["content"] == "Follow-up question"
 
     @pytest.mark.asyncio
-    async def test_get_ticket_status_chronological_order(self, db_session):
+    async def test_get_ticket_status_chronological_order(self, session):
         """Test messages are returned in chronological order."""
         async with get_session() as session:
             customer = Customer(

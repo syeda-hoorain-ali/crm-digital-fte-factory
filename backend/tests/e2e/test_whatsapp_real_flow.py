@@ -160,7 +160,7 @@ class TestWhatsAppRealFlow:
 
     async def test_whatsapp_inbound_message_processing(
         self,
-        e2e_session: AsyncSession,
+        session: AsyncSession,
         clean_test_data,
         kafka_consumer
     ):
@@ -221,7 +221,7 @@ class TestWhatsAppRealFlow:
             elapsed += poll_interval
 
             # Search by content containing the unique test_id
-            result = await e2e_session.execute(
+            result = await session.execute(
                 select(Message).where(col(Message.content).contains(self.test_id))
             )
             db_message = result.scalars().first()
@@ -242,7 +242,7 @@ class TestWhatsAppRealFlow:
         # Step 3: Verify customer created/identified
         print("\n[Step 3] Verifying customer identification...")
 
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(CustomerIdentifier)
             .where(CustomerIdentifier.identifier_value == self.test_phone)
         )
@@ -255,7 +255,7 @@ class TestWhatsAppRealFlow:
         print(f"[OK] Customer identified: {customer_id}")
 
         # Verify customer record
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(Customer).where(Customer.id == customer_id)
         )
         customer = result.scalars().first()
@@ -267,11 +267,11 @@ class TestWhatsAppRealFlow:
         print("\n[Step 4] Verifying conversation...")
 
         # Use the conversation_id from the message we found
-        await e2e_session.refresh(db_message)
+        await session.refresh(db_message)
         assert db_message is not None
         conversation_id = db_message.conversation_id
 
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(Conversation).where(Conversation.id == conversation_id)
         )
         conversation = result.scalars().first()
@@ -285,9 +285,9 @@ class TestWhatsAppRealFlow:
         # Step 5: Verify message stored
         print("\n[Step 5] Verifying message storage...")
 
-        await e2e_session.refresh(db_message)
+        await session.refresh(db_message)
 
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(Message)
             .where(Message.conversation_id == conversation.id)
             .where(Message.id == db_message.id)
@@ -304,7 +304,7 @@ class TestWhatsAppRealFlow:
         # Step 6: Verify ticket created
         print("\n[Step 6] Verifying ticket creation...")
 
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(Ticket)
             .where(Ticket.conversation_id == conversation.id)
             .where(Ticket.customer_id == customer_id)
@@ -321,7 +321,7 @@ class TestWhatsAppRealFlow:
         # Step 7: Verify webhook delivery log
         print("\n[Step 7] Verifying webhook log...")
 
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(WebhookDeliveryLog)
             .where(col(WebhookDeliveryLog.webhook_type) == "whatsapp")
             .order_by(col(WebhookDeliveryLog.received_at).desc())
@@ -432,10 +432,10 @@ class TestWhatsAppRealFlow:
             agent_elapsed += agent_poll_interval
 
             # Clear session cache to see new messages
-            e2e_session.expire_all()
+            session.expire_all()
 
             # Search for outbound agent message in the same conversation
-            result = await e2e_session.execute(
+            result = await session.execute(
                 select(Message)
                 .where(Message.conversation_id == conversation_id)
                 .where(Message.role == MessageRole.AGENT)
@@ -479,7 +479,7 @@ class TestWhatsAppRealFlow:
 
     async def test_whatsapp_conversation_continuity(
         self,
-        e2e_session: AsyncSession,
+        session: AsyncSession,
         clean_test_data,
         kafka_consumer
     ):
@@ -531,7 +531,7 @@ class TestWhatsAppRealFlow:
             await asyncio.sleep(poll_interval)
             elapsed += poll_interval
 
-            result = await e2e_session.execute(
+            result = await session.execute(
                 select(Message).where(col(Message.content).contains(self.test_id))
             )
             initial_message = result.scalars().first()
@@ -547,10 +547,10 @@ class TestWhatsAppRealFlow:
             pytest.skip("Initial message not processed yet - webhook may be delayed")
 
         # Get the conversation from the message
-        await e2e_session.refresh(initial_message)
+        await session.refresh(initial_message)
         initial_conversation_id = initial_message.conversation_id
 
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(Conversation).where(Conversation.id == initial_conversation_id)
         )
         initial_conversation = result.scalars().first()
@@ -560,7 +560,7 @@ class TestWhatsAppRealFlow:
         print(f"[OK] Initial conversation: {initial_conversation_id}")
 
         # Count initial messages
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(Message)
             .where(Message.conversation_id == initial_conversation_id)
         )
@@ -638,9 +638,9 @@ class TestWhatsAppRealFlow:
             elapsed_second += poll_interval_second
 
             # Clear session cache to see new messages
-            e2e_session.expire_all()
+            session.expire_all()
 
-            result = await e2e_session.execute(
+            result = await session.execute(
                 select(Message)
                 .where(Message.conversation_id == initial_conversation_id)
             )
@@ -659,7 +659,7 @@ class TestWhatsAppRealFlow:
         # Step 5: Verify same conversation used
         print("\n[Step 5] Verifying conversation continuity...")
 
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(Message)
             .where(Message.conversation_id == initial_conversation_id)
         )
@@ -720,7 +720,7 @@ class TestWhatsAppRealFlow:
         print("  (Checking for agent responses in conversation)")
 
         # Count agent responses in the conversation
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(Message)
             .where(Message.conversation_id == initial_conversation_id)
             .where(Message.role == MessageRole.AGENT)
@@ -746,7 +746,7 @@ class TestWhatsAppRealFlow:
 
     async def test_whatsapp_escalation_detection(
         self,
-        e2e_session: AsyncSession,
+        session: AsyncSession,
         clean_test_data,
         kafka_consumer
     ):
@@ -796,7 +796,7 @@ class TestWhatsAppRealFlow:
             await asyncio.sleep(poll_interval)
             elapsed += poll_interval
 
-            result = await e2e_session.execute(
+            result = await session.execute(
                 select(Message).where(col(Message.content).contains(self.test_id))
             )
             db_message = result.scalars().first()
@@ -816,7 +816,7 @@ class TestWhatsAppRealFlow:
 
         assert db_message
         conversation_id = db_message.conversation_id
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(Ticket)
             .where(Ticket.conversation_id == conversation_id)
         )
@@ -901,10 +901,10 @@ class TestWhatsAppRealFlow:
             agent_elapsed += agent_poll_interval
 
             # Clear session cache to see new messages
-            e2e_session.expire_all()
+            session.expire_all()
 
             # Search for outbound agent message in the same conversation
-            result = await e2e_session.execute(
+            result = await session.execute(
                 select(Message)
                 .where(Message.conversation_id == conversation_id)
                 .where(Message.role == MessageRole.AGENT)

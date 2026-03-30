@@ -72,12 +72,12 @@ class TestAgentProcessEndpoint:
     """Integration tests for POST /agent/process endpoint (T094)."""
 
     @pytest.mark.asyncio
-    async def test_process_endpoint_with_new_customer(self, db_session):
+    async def test_process_endpoint_with_new_customer(self, session: AsyncSession): # error in this
         """Test processing inquiry from new customer."""
         request_data = {
             "message": "Hello, I need help with my account",
-            "email": "newcustomer@example.com",
-            "phone": "+1234567890",
+            "customer_email": f"newcustomer{uuid4().hex[:8]}@example.com",
+            "customer_phone": f"+12345{uuid4().hex[:6]}",
             "channel": "api",
         }
 
@@ -96,21 +96,24 @@ class TestAgentProcessEndpoint:
 
     @pytest.mark.asyncio
     async def test_process_endpoint_with_existing_customer(
-        self, db_session: AsyncSession, test_customer: Customer
+        self, session: AsyncSession, test_customer: Customer
     ):
         """Test processing inquiry from existing customer."""
+        # Ensure test customer has email
+        assert test_customer.email is not None
+
         # Setup: Create customer identifier
-        await create_customer_identifier(
-            db_session,
+        identifier = await create_customer_identifier(
+            session,
             test_customer.id,
             IdentifierType.EMAIL,
             test_customer.email,
         )
-        await db_session.commit()
+        await session.commit()
 
         request_data = {
             "message": "I have a question about billing",
-            "email": test_customer.email,
+            "customer_email": test_customer.email,
             "channel": "email",
         }
 
@@ -123,11 +126,13 @@ class TestAgentProcessEndpoint:
             # Verify customer was identified
             assert data["customer_id"] == str(test_customer.id)
 
+        # Note: Cleanup happens automatically via fixtures
+
     @pytest.mark.asyncio
     async def test_process_endpoint_missing_message(self):
         """Test process endpoint with missing message field."""
         request_data = {
-            "email": "test@example.com",
+            "customer_email": "test@example.com",
             "channel": "api",
         }
 
@@ -157,7 +162,7 @@ class TestAgentProcessEndpoint:
         """Test process endpoint includes observability metrics."""
         request_data = {
             "message": "Test message",
-            "email": "metrics@example.com",
+            "customer_email": "metrics@example.com",
             "channel": "api",
         }
 
@@ -166,6 +171,8 @@ class TestAgentProcessEndpoint:
 
             assert response.status_code == 200
             data = response.json()
+            print('      ')
+            print(data)
 
             # Check for observability fields
             if "tokens_used" in data:
@@ -181,7 +188,7 @@ class TestAgentProcessEndpoint:
         for channel in channels:
             request_data = {
                 "message": f"Test message via {channel}",
-                "email": f"test-{channel}@example.com",
+                "customer_email": f"test-{channel}@example.com",
                 "channel": channel,
             }
 
@@ -197,7 +204,7 @@ class TestAgentProcessEndpoint:
         """Test process endpoint tracks escalation status."""
         request_data = {
             "message": "I'm extremely frustrated and want to speak to a manager!",
-            "email": "frustrated@example.com",
+            "customer_email": "frustrated@example.com",
             "channel": "email",
         }
 
@@ -208,9 +215,9 @@ class TestAgentProcessEndpoint:
             data = response.json()
 
             # Check if escalation was triggered
-            if "escalation_triggered" in data:
-                assert isinstance(data["escalation_triggered"], bool)
-            if "escalation_reason" in data and data.get("escalation_triggered"):
+            if "escalated" in data:
+                assert isinstance(data["escalated"], bool)
+            if "escalation_reason" in data and data.get("escalated"):
                 assert isinstance(data["escalation_reason"], str)
 
 
@@ -221,19 +228,19 @@ class TestConversationHistoryEndpoint:
 
     @pytest.mark.asyncio
     async def test_history_endpoint_retrieves_messages(
-        self, db_session: AsyncSession, test_customer: Customer
+        self, session: AsyncSession, test_customer: Customer
     ):
         """Test history endpoint retrieves conversation messages."""
         # Setup: Create conversation with messages
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.API,
             ConversationStatus.ACTIVE,
         )
 
         await create_message(
-            db_session,
+            session,
             conversation.id,
             MessageRole.CUSTOMER,
             "First message",
@@ -242,7 +249,7 @@ class TestConversationHistoryEndpoint:
         )
 
         await create_message(
-            db_session,
+            session,
             conversation.id,
             MessageRole.AGENT,
             "First response",
@@ -250,7 +257,7 @@ class TestConversationHistoryEndpoint:
             Channel.API,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         with TestClient(app) as client:
             response = client.get(f"/agent/history/{conversation.id}")
@@ -283,18 +290,18 @@ class TestConversationHistoryEndpoint:
 
     @pytest.mark.asyncio
     async def test_history_endpoint_empty_conversation(
-        self, db_session: AsyncSession, test_customer: Customer
+        self, session: AsyncSession, test_customer: Customer
     ):
         """Test history endpoint with conversation that has no messages."""
         # Setup: Create empty conversation
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.API,
             ConversationStatus.ACTIVE,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         with TestClient(app) as client:
             response = client.get(f"/agent/history/{conversation.id}")
@@ -307,19 +314,19 @@ class TestConversationHistoryEndpoint:
 
     @pytest.mark.asyncio
     async def test_history_endpoint_includes_metadata(
-        self, db_session: AsyncSession, test_customer: Customer
+        self, session: AsyncSession, test_customer: Customer
     ):
         """Test history endpoint includes conversation metadata."""
         # Setup: Create conversation with metadata
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.EMAIL,
             ConversationStatus.RESOLVED,
         )
 
         await create_message(
-            db_session,
+            session,
             conversation.id,
             MessageRole.CUSTOMER,
             "Test message",
@@ -329,7 +336,7 @@ class TestConversationHistoryEndpoint:
             latency_ms=100,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         with TestClient(app) as client:
             response = client.get(f"/agent/history/{conversation.id}")
@@ -346,17 +353,17 @@ class TestConversationHistoryEndpoint:
             # Check for message metadata
             if len(data["messages"]) > 0:
                 message = data["messages"][0]
-                if "sentiment_score" in message:
-                    assert isinstance(message["sentiment_score"], (int, float))
+                if "tokens_used" in message:
+                    assert isinstance(message["tokens_used"], int)
 
     @pytest.mark.asyncio
     async def test_history_endpoint_pagination(
-        self, db_session: AsyncSession, test_customer: Customer
+        self, session: AsyncSession, test_customer: Customer
     ):
         """Test history endpoint supports pagination."""
         # Setup: Create conversation with many messages
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.API,
             ConversationStatus.ACTIVE,
@@ -368,7 +375,7 @@ class TestConversationHistoryEndpoint:
             direction = MessageDirection.INBOUND if i % 2 == 0 else MessageDirection.OUTBOUND
 
             await create_message(
-                db_session,
+                session,
                 conversation.id,
                 role,
                 f"Message {i}",
@@ -376,7 +383,7 @@ class TestConversationHistoryEndpoint:
                 Channel.API,
             )
 
-        await db_session.commit()
+        await session.commit()
 
         with TestClient(app) as client:
             # Test with limit parameter
@@ -393,12 +400,12 @@ class TestConversationHistoryEndpoint:
 
     @pytest.mark.asyncio
     async def test_history_endpoint_chronological_order(
-        self, db_session: AsyncSession, test_customer: Customer
+        self, session: AsyncSession, test_customer: Customer
     ):
         """Test history endpoint returns messages in chronological order."""
         # Setup: Create conversation with messages
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.API,
             ConversationStatus.ACTIVE,
@@ -407,7 +414,7 @@ class TestConversationHistoryEndpoint:
         messages_content = ["First", "Second", "Third", "Fourth"]
         for content in messages_content:
             await create_message(
-                db_session,
+                session,
                 conversation.id,
                 MessageRole.CUSTOMER,
                 content,
@@ -415,7 +422,7 @@ class TestConversationHistoryEndpoint:
                 Channel.API,
             )
 
-        await db_session.commit()
+        await session.commit()
 
         with TestClient(app) as client:
             response = client.get(f"/agent/history/{conversation.id}")

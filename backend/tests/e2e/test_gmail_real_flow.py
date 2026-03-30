@@ -82,7 +82,7 @@ class TestGmailRealFlow:
 
     async def test_gmail_inbound_email_processing(
         self,
-        e2e_session: AsyncSession,
+        session: AsyncSession,
         kafka_consumer: AIOKafkaConsumer,
         clean_test_data
     ):
@@ -166,7 +166,7 @@ class TestGmailRealFlow:
             elapsed += poll_interval
 
             # FIX: Search by content containing the unique test_id, NOT the sender's message_id
-            result = await e2e_session.execute(
+            result = await session.execute(
                 select(Message).where(col(Message.content).contains(self.test_id))
             )
             db_message = result.scalars().first()
@@ -200,7 +200,7 @@ class TestGmailRealFlow:
             # Parse from header
             test_email = "test@example.com"  # Fallback
 
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(CustomerIdentifier)
             .where(CustomerIdentifier.identifier_value == test_email)
         )
@@ -213,7 +213,7 @@ class TestGmailRealFlow:
         print(f"[OK] Customer identified: {customer_id}")
 
         # Verify customer record
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(Customer).where(Customer.id == customer_id)
         )
         customer = result.scalars().first()
@@ -225,11 +225,11 @@ class TestGmailRealFlow:
         print("\n[Step 4] Verifying conversation...")
 
         # Use the conversation_id from the message we found
-        await e2e_session.refresh(db_message)
+        await session.refresh(db_message)
         assert db_message is not None
         conversation_id = db_message.conversation_id
 
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(Conversation).where(Conversation.id == conversation_id)
         )
         conversation = result.scalars().first()
@@ -245,10 +245,10 @@ class TestGmailRealFlow:
         assert db_message is not None
 
         # --- ADD THIS LINE TO FIX THE FAILURE ---
-        await e2e_session.refresh(db_message) 
+        await session.refresh(db_message) 
         # ----------------------------------------
 
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(Message)
             .where(Message.conversation_id == conversation.id)
             .where(Message.id == db_message.id)
@@ -263,7 +263,7 @@ class TestGmailRealFlow:
         # Step 6: Verify ticket created
         print("\n[Step 6] Verifying ticket creation...")
 
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(Ticket)
             .where(Ticket.conversation_id == conversation.id)
             .where(Ticket.customer_id == customer_id)
@@ -280,7 +280,7 @@ class TestGmailRealFlow:
         # Step 7: Verify webhook delivery log
         print("\n[Step 7] Verifying webhook log...")
 
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(WebhookDeliveryLog)
             .where(col(WebhookDeliveryLog.webhook_type) == "gmail")
             .order_by(col(WebhookDeliveryLog.received_at).desc())
@@ -392,7 +392,7 @@ class TestGmailRealFlow:
 
     async def test_gmail_reply_threading(
         self,
-        e2e_session: AsyncSession,
+        session: AsyncSession,
         kafka_consumer: AIOKafkaConsumer,
         clean_test_data
     ):
@@ -446,7 +446,7 @@ class TestGmailRealFlow:
             await asyncio.sleep(poll_interval)
             elapsed += poll_interval
 
-            result = await e2e_session.execute(
+            result = await session.execute(
                 select(Message).where(col(Message.content).contains(self.test_id))
             )
             initial_message = result.scalars().first()
@@ -462,10 +462,10 @@ class TestGmailRealFlow:
             pytest.skip("Initial email not processed yet - webhook may be delayed")
 
         # Get the conversation from the message
-        await e2e_session.refresh(initial_message)
+        await session.refresh(initial_message)
         initial_conversation_id = initial_message.conversation_id
 
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(Conversation).where(Conversation.id == initial_conversation_id)
         )
         initial_conversation = result.scalars().first()
@@ -475,7 +475,7 @@ class TestGmailRealFlow:
         print(f"[OK] Initial conversation: {initial_conversation_id}")
 
         # Count initial messages
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(Message)
             .where(Message.conversation_id == initial_conversation_id)
         )
@@ -561,9 +561,9 @@ class TestGmailRealFlow:
             elapsed_reply += poll_interval_reply
 
             # CRITICAL: Clear session cache to see the new message
-            e2e_session.expire_all()
+            session.expire_all()
 
-            result = await e2e_session.execute(
+            result = await session.execute(
                 select(Message)
                 .where(Message.conversation_id == initial_conversation_id)
             )
@@ -583,13 +583,13 @@ class TestGmailRealFlow:
             print(f"  Receiver thread: {initial_message.thread_id}")
 
             # Check if reply created a new conversation
-            result = await e2e_session.execute(
+            result = await session.execute(
                 select(Message).where(col(Message.content).contains(reply_body[:30]))
             )
             reply_message = result.scalars().first()
 
             if reply_message:
-                await e2e_session.refresh(reply_message)
+                await session.refresh(reply_message)
                 print(f"  Reply found in different conversation: {reply_message.conversation_id}")
                 print(f"  Reply thread_id: {reply_message.thread_id}")
                 pytest.skip(
@@ -603,7 +603,7 @@ class TestGmailRealFlow:
         # Step 5: Verify same conversation used
         print("\n[Step 5] Verifying conversation continuity...")
 
-        result = await e2e_session.execute(
+        result = await session.execute(
             select(Message)
             .where(Message.conversation_id == initial_conversation_id)
         )

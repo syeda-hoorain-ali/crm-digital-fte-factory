@@ -47,11 +47,14 @@ class TestAgentWorkflowIntegration:
     """Integration tests for complete agent workflow with real database."""
 
     @pytest.mark.asyncio
-    async def test_complete_customer_support_workflow(self, db_session: AsyncSession, test_customer: Customer):
+    async def test_complete_customer_support_workflow(self, session: AsyncSession, test_customer: Customer):
         """Test complete workflow: identify → search → respond."""
+        # Ensure test customer has required fields
+        assert test_customer.email is not None
+
         # Setup: Create customer identifiers
         await create_customer_identifier(
-            db_session,
+            session,
             test_customer.id,
             IdentifierType.EMAIL,
             test_customer.email,
@@ -60,7 +63,7 @@ class TestAgentWorkflowIntegration:
         # Setup: Create knowledge base article
         dummy_embedding = [0.1] * 384
         await create_knowledge_base_entry(
-            db_session,
+            session,
             "Password Reset Guide",
             "To reset your password, go to Settings > Security.",
             dummy_embedding,
@@ -68,17 +71,17 @@ class TestAgentWorkflowIntegration:
 
         # Setup: Create conversation
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.API,
             ConversationStatus.ACTIVE,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create context
         context = CustomerSuccessContext(
-            db_session=db_session,
+            db_session=session,
             conversation_id=str(conversation.id),
             channel="api",
         )
@@ -130,11 +133,11 @@ class TestAgentWorkflowIntegration:
 
         assert "Response sent successfully" in response_result
 
-        await db_session.commit()
+        await session.commit()
 
         # Verify message was stored
         messages = await get_conversation_history(
-            db_session,
+            session,
             conversation.id,
             limit=10,
             offset=0,
@@ -146,11 +149,11 @@ class TestAgentWorkflowIntegration:
         assert agent_messages[0].content == "I can help you reset your password."
 
     @pytest.mark.asyncio
-    async def test_escalation_workflow(self, db_session: AsyncSession, test_customer: Customer):
+    async def test_escalation_workflow(self, session: AsyncSession, test_customer: Customer):
         """Test escalation workflow with sentiment analysis."""
         # Setup: Create conversation with negative sentiment
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.EMAIL,
             ConversationStatus.ACTIVE,
@@ -158,7 +161,7 @@ class TestAgentWorkflowIntegration:
 
         # Add messages with negative sentiment
         await create_message(
-            db_session,
+            session,
             conversation.id,
             MessageRole.CUSTOMER,
             "I'm very frustrated with this service!",
@@ -166,11 +169,11 @@ class TestAgentWorkflowIntegration:
             Channel.EMAIL,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create context
         context = CustomerSuccessContext(
-            db_session=db_session,
+            db_session=session,
             customer_id=str(test_customer.id),
             conversation_id=str(conversation.id),
             channel="email",
@@ -189,31 +192,31 @@ class TestAgentWorkflowIntegration:
         assert "Escalated to human support" in result
         assert context.escalation_triggered is True
 
-        await db_session.commit()
+        await session.commit()
 
         # Verify conversation was updated
-        updated_conv = await get_conversation(db_session, conversation.id)
+        updated_conv = await get_conversation(session, conversation.id)
 
         assert updated_conv
         assert updated_conv.status == ConversationStatus.ESCALATED
         assert updated_conv.escalated_to is not None
 
     @pytest.mark.asyncio
-    async def test_ticket_creation_workflow(self, db_session: AsyncSession, test_customer: Customer):
+    async def test_ticket_creation_workflow(self, session: AsyncSession, test_customer: Customer):
         """Test ticket creation workflow."""
         # Setup: Create conversation
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.WEB_FORM,
             ConversationStatus.ACTIVE,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create context
         context = CustomerSuccessContext(
-            db_session=db_session,
+            db_session=session,
             customer_id=str(test_customer.id),
             conversation_id=str(conversation.id),
             channel="web_form",
@@ -231,27 +234,27 @@ class TestAgentWorkflowIntegration:
         assert "Support ticket created" in result
         assert context.ticket_id is not None
 
-        await db_session.commit()
+        await session.commit()
 
         # Verify ticket was created
-        tickets = await list_conversation_tickets(db_session, conversation.id)
+        tickets = await list_conversation_tickets(session, conversation.id)
 
         assert len(tickets) >= 1
         assert tickets[0].category == "billing"
 
     @pytest.mark.asyncio
-    async def test_customer_history_workflow(self, db_session: AsyncSession, test_customer: Customer):
+    async def test_customer_history_workflow(self, session: AsyncSession, test_customer: Customer):
         """Test customer history retrieval workflow."""
         # Setup: Create multiple conversations
         conv1 = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.EMAIL,
             ConversationStatus.RESOLVED,
         )
 
         conv2 = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.WHATSAPP,
             ConversationStatus.ACTIVE,
@@ -259,7 +262,7 @@ class TestAgentWorkflowIntegration:
 
         # Add messages to conversations
         await create_message(
-            db_session,
+            session,
             conv1.id,
             MessageRole.CUSTOMER,
             "Previous issue",
@@ -267,11 +270,11 @@ class TestAgentWorkflowIntegration:
             Channel.WHATSAPP,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create context
         context = CustomerSuccessContext(
-            db_session=db_session,
+            db_session=session,
             customer_id=str(test_customer.id),
             conversation_id=str(conv2.id),
             channel="whatsapp",
@@ -292,35 +295,35 @@ class TestAgentWorkflowIntegration:
         assert len(context.conversation_history) >= 2
 
     @pytest.mark.asyncio
-    async def test_cross_channel_customer_unification(self, db_session):
+    async def test_cross_channel_customer_unification(self, session):
         """Test customer unification across different channels."""
         # Create customer with email identifier
         customer = await create_customer(
-            db_session,
+            session,
             name="John Doe",
             email="john@example.com",
             phone="+1234567890",
         )
 
         await create_customer_identifier(
-            db_session,
+            session,
             customer.id,
             IdentifierType.EMAIL,
             "john@example.com",
         )
 
         await create_customer_identifier(
-            db_session,
+            session,
             customer.id,
             IdentifierType.PHONE,
             "+1234567890",
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Test identification via email (Channel 1: Email)
         context1 = CustomerSuccessContext(
-            db_session=db_session,
+            db_session=session,
             channel="email",
         )
 
@@ -338,7 +341,7 @@ class TestAgentWorkflowIntegration:
 
         # Test identification via phone (Channel 2: WhatsApp)
         context2 = CustomerSuccessContext(
-            db_session=db_session,
+            db_session=session,
             channel="whatsapp",
         )
 
@@ -359,28 +362,31 @@ class TestAgentWorkflowIntegration:
         assert customer_id_1 == str(customer.id)
 
     @pytest.mark.asyncio
-    async def test_context_state_management(self, db_session: AsyncSession, test_customer: Customer):
+    async def test_context_state_management(self, session: AsyncSession, test_customer: Customer):
         """Test context state is properly managed across tool calls."""
+        # Ensure test customer has required fields
+        assert test_customer.email is not None
+
         # Create conversation
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.API,
             ConversationStatus.ACTIVE,
         )
 
         await create_customer_identifier(
-            db_session,
+            session,
             test_customer.id,
             IdentifierType.EMAIL,
             test_customer.email,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create context
         context = CustomerSuccessContext(
-            db_session=db_session,
+            db_session=session,
             conversation_id=str(conversation.id),
             channel="api",
         )
@@ -419,11 +425,11 @@ class TestAgentWorkflowIntegration:
         assert context.conversation_id == str(conversation.id)
 
     @pytest.mark.asyncio
-    async def test_error_handling_in_workflow(self, db_session):
+    async def test_error_handling_in_workflow(self, session):
         """Test error handling when tools are called with invalid state."""
         # Create context without required fields
         context = CustomerSuccessContext(
-            db_session=db_session,
+            db_session=session,
             channel="api",
         )
 

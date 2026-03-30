@@ -21,7 +21,7 @@ class TestKnowledgeBaseMigration:
     """Integration tests for knowledge base migration script."""
 
     @pytest.mark.asyncio
-    async def test_migrate_knowledge_base_from_json(self, db_session: AsyncSession):
+    async def test_migrate_knowledge_base_from_json(self, session: AsyncSession):
         """Test migrating knowledge base articles from JSON format."""
         # Simulate migration data
         articles_data = [
@@ -49,7 +49,7 @@ class TestKnowledgeBaseMigration:
         migrated_articles = []
         for article_data in articles_data:
             article = await create_knowledge_base_entry(
-                db_session,
+                session,
                 title=article_data["title"],
                 content=article_data["content"],
                 embedding=dummy_embedding,
@@ -57,20 +57,20 @@ class TestKnowledgeBaseMigration:
             )
             migrated_articles.append(article)
 
-        await db_session.commit()
+        await session.commit()
 
         # Verify all articles were migrated
         assert len(migrated_articles) == 3
 
         # Verify each article can be retrieved
         for article in migrated_articles:
-            retrieved = await get_knowledge_base_entry(db_session, article.id)
+            retrieved = await get_knowledge_base_entry(session, article.id)
             assert retrieved is not None
             assert retrieved.title == article.title
             assert retrieved.content == article.content
 
     @pytest.mark.asyncio
-    async def test_migrate_with_embeddings_generation(self, db_session: AsyncSession):
+    async def test_migrate_with_embeddings_generation(self, session: AsyncSession):
         """Test migration with actual embedding generation."""
         from unittest.mock import MagicMock, patch
 
@@ -91,7 +91,7 @@ class TestKnowledgeBaseMigration:
 
             # Create article with generated embedding
             article = await create_knowledge_base_entry(
-                db_session,
+                session,
                 title=article_data["title"],
                 content=article_data["content"],
                 embedding=embedding,
@@ -99,7 +99,7 @@ class TestKnowledgeBaseMigration:
                 metadata={"category": article_data["category"]}
             )
 
-            await db_session.commit()
+            await session.commit()
 
             # Verify article was created with embedding
             assert article.id is not None
@@ -107,36 +107,36 @@ class TestKnowledgeBaseMigration:
             assert article.embedding[0] == 0.2
 
     @pytest.mark.asyncio
-    async def test_migrate_handles_duplicate_titles(self, db_session: AsyncSession):
+    async def test_migrate_handles_duplicate_titles(self, session: AsyncSession):
         """Test migration handles articles with duplicate titles."""
         dummy_embedding = [0.1] * 384
 
         # Create first article
         article1 = await create_knowledge_base_entry(
-            db_session,
+            session,
             title="Common Issue",
             content="First version of content",
             embedding=dummy_embedding,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create second article with same title (should be allowed)
         article2 = await create_knowledge_base_entry(
-            db_session,
+            session,
             title="Common Issue",
             content="Second version of content",
             embedding=dummy_embedding,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Both articles should exist with different IDs
         assert article1.id != article2.id
         assert article1.content != article2.content
 
     @pytest.mark.asyncio
-    async def test_migrate_preserves_metadata(self, db_session: AsyncSession):
+    async def test_migrate_preserves_metadata(self, session: AsyncSession):
         """Test migration preserves article metadata."""
         dummy_embedding = [0.1] * 384
 
@@ -148,7 +148,7 @@ class TestKnowledgeBaseMigration:
         }
 
         article = await create_knowledge_base_entry(
-            db_session,
+            session,
             title="Webhook Integration",
             content="How to set up webhooks for real-time notifications.",
             embedding=dummy_embedding,
@@ -156,15 +156,15 @@ class TestKnowledgeBaseMigration:
             metadata=metadata,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Verify metadata was preserved
-        retrieved = await get_knowledge_base_entry(db_session, article.id)
+        retrieved = await get_knowledge_base_entry(session, article.id)
         assert retrieved is not None
-        assert retrieved.meta_data == metadata
+        assert retrieved.metadata_ == metadata
 
     @pytest.mark.asyncio
-    async def test_migrate_enables_semantic_search(self, db_session: AsyncSession):
+    async def test_migrate_enables_semantic_search(self, session: AsyncSession):
         """Test migrated articles are searchable via semantic search."""
         # Create articles with embeddings
         articles_data = [
@@ -175,18 +175,18 @@ class TestKnowledgeBaseMigration:
 
         for title, content, embedding in articles_data:
             await create_knowledge_base_entry(
-                db_session,
+                session,
                 title=title,
                 content=content,
                 embedding=embedding,
             )
 
-        await db_session.commit()
+        await session.commit()
 
         # Search with similar embedding to first two articles
         query_embedding = [0.12] * 384
         results = await search_knowledge_base(
-            db_session,
+            session,
             query_embedding,
             limit=5,
             min_similarity=0.5,
@@ -202,7 +202,7 @@ class TestKnowledgeBaseMigration:
             assert similarity1 >= similarity2
 
     @pytest.mark.asyncio
-    async def test_migrate_batch_processing(self, db_session: AsyncSession):
+    async def test_migrate_batch_processing(self, session: AsyncSession):
         """Test migration can handle batch processing of articles."""
         dummy_embedding = [0.1] * 384
 
@@ -212,7 +212,7 @@ class TestKnowledgeBaseMigration:
 
         for i in range(batch_size):
             article = await create_knowledge_base_entry(
-                db_session,
+                session,
                 title=f"Article {i}",
                 content=f"Content for article {i}",
                 embedding=dummy_embedding,
@@ -220,19 +220,19 @@ class TestKnowledgeBaseMigration:
             )
             articles.append(article)
 
-        await db_session.commit()
+        await session.commit()
 
         # Verify all articles were created
         assert len(articles) == batch_size
 
         # Verify articles can be retrieved
         for i, article in enumerate(articles):
-            retrieved = await get_knowledge_base_entry(db_session, article.id)
+            retrieved = await get_knowledge_base_entry(session, article.id)
             assert retrieved is not None
-            assert retrieved.meta_data["index"] == i
+            assert retrieved.metadata_["index"] == i
 
     @pytest.mark.asyncio
-    async def test_migrate_handles_long_content(self, db_session: AsyncSession):
+    async def test_migrate_handles_long_content(self, session: AsyncSession):
         """Test migration handles articles with long content."""
         dummy_embedding = [0.1] * 384
 
@@ -240,21 +240,21 @@ class TestKnowledgeBaseMigration:
         long_content = "This is a comprehensive guide. " * 500  # ~15,000 characters
 
         article = await create_knowledge_base_entry(
-            db_session,
+            session,
             title="Comprehensive Guide",
             content=long_content,
             embedding=dummy_embedding,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Verify article was created successfully
-        retrieved = await get_knowledge_base_entry(db_session, article.id)
+        retrieved = await get_knowledge_base_entry(session, article.id)
         assert retrieved is not None
         assert len(retrieved.content) == len(long_content)
 
     @pytest.mark.asyncio
-    async def test_migrate_handles_special_characters(self, db_session: AsyncSession):
+    async def test_migrate_handles_special_characters(self, session: AsyncSession):
         """Test migration handles special characters in content."""
         dummy_embedding = [0.1] * 384
 
@@ -268,27 +268,27 @@ class TestKnowledgeBaseMigration:
         """
 
         article = await create_knowledge_base_entry(
-            db_session,
+            session,
             title="Special Characters Test",
             content=special_content,
             embedding=dummy_embedding,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Verify content was preserved exactly
-        retrieved = await get_knowledge_base_entry(db_session, article.id)
+        retrieved = await get_knowledge_base_entry(session, article.id)
         assert retrieved is not None
         assert retrieved.content == special_content
 
     @pytest.mark.asyncio
-    async def test_migrate_rollback_on_error(self, db_session: AsyncSession):
+    async def test_migrate_rollback_on_error(self, session: AsyncSession):
         """Test migration can rollback on error."""
         dummy_embedding = [0.1] * 384
 
         # Create first article successfully
         article1 = await create_knowledge_base_entry(
-            db_session,
+            session,
             title="Article 1",
             content="Content 1",
             embedding=dummy_embedding,
@@ -298,7 +298,7 @@ class TestKnowledgeBaseMigration:
         try:
             # Create second article
             article2 = await create_knowledge_base_entry(
-                db_session,
+                session,
                 title="Article 2",
                 content="Content 2",
                 embedding=dummy_embedding,
@@ -309,15 +309,15 @@ class TestKnowledgeBaseMigration:
 
         except Exception:
             # Rollback transaction
-            await db_session.rollback()
+            await session.rollback()
 
         # Verify neither article was committed
-        retrieved1 = await get_knowledge_base_entry(db_session, article1.id)
+        retrieved1 = await get_knowledge_base_entry(session, article1.id)
         # After rollback, article should not exist
         assert retrieved1 is None
 
     @pytest.mark.asyncio
-    async def test_migrate_idempotency(self, db_session: AsyncSession):
+    async def test_migrate_idempotency(self, session: AsyncSession):
         """Test migration can be run multiple times safely."""
         dummy_embedding = [0.1] * 384
 
@@ -328,23 +328,23 @@ class TestKnowledgeBaseMigration:
 
         # First migration
         article1 = await create_knowledge_base_entry(
-            db_session,
+            session,
             title=article_data["title"],
             content=article_data["content"],
             embedding=dummy_embedding,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Second migration (should create new article, not update)
         article2 = await create_knowledge_base_entry(
-            db_session,
+            session,
             title=article_data["title"],
             content=article_data["content"],
             embedding=dummy_embedding,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Both articles should exist (migration creates new entries)
         assert article1.id != article2.id

@@ -40,7 +40,7 @@ class TestIdentifyCustomerTool:
     """Unit tests for identify_customer tool."""
 
     @pytest.mark.asyncio
-    async def test_identify_existing_customer_by_email(self, mock_customer_context):
+    async def test_identify_existing_customer_by_email(self, mock_customer_context: CustomerSuccessContext):
         """Test identifying existing customer by email."""
         # Mock database queries
         mock_customer = Customer(
@@ -48,8 +48,11 @@ class TestIdentifyCustomerTool:
             email="test@example.com",
             phone="+1234567890",
             name="Test Customer",
-            meta_data={"tier": "premium"},
+            metadata_={"tier": "premium"},
         )
+
+        # Set context properties (tool reads from context, not arguments)
+        mock_customer_context.customer_email = "test@example.com"
 
         with patch(
             "src.agent.tools.identify_customer.get_customer_by_identifier",
@@ -60,8 +63,7 @@ class TestIdentifyCustomerTool:
             # Execute tool using mock wrapper
             wrapper = MagicMock()
             wrapper.context = mock_customer_context
-            input_data = {"email": "test@example.com"}
-            result = await identify_customer.on_invoke_tool(wrapper, json.dumps(input_data))
+            result = await identify_customer.on_invoke_tool(wrapper, "{}")
 
             # Verify result
             assert "Customer identified" in result
@@ -76,15 +78,18 @@ class TestIdentifyCustomerTool:
             mock_get_customer.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_identify_existing_customer_by_phone(self, mock_customer_context):
+    async def test_identify_existing_customer_by_phone(self, mock_customer_context: CustomerSuccessContext):
         """Test identifying existing customer by phone."""
         mock_customer = Customer(
             id=uuid4(),
             email="test@example.com",
             phone="+1234567890",
             name="Test Customer",
-            meta_data={"tier": "standard"},
+            metadata_={"tier": "standard"},
         )
+
+        # Set context properties (tool reads from context, not arguments)
+        mock_customer_context.customer_phone = "+1234567890"
 
         with patch(
             "src.agent.tools.identify_customer.get_customer_by_identifier",
@@ -95,32 +100,33 @@ class TestIdentifyCustomerTool:
 
             wrapper = MagicMock()
             wrapper.context = mock_customer_context
-            input_data = {"phone": "+1234567890"}
-            result = await identify_customer.on_invoke_tool(wrapper, json.dumps(input_data))
+            result = await identify_customer.on_invoke_tool(wrapper, "{}")
 
             assert "Customer identified" in result
             assert str(mock_customer.id) in result
 
     @pytest.mark.asyncio
-    async def test_create_new_customer(self, mock_customer_context):
+    async def test_create_new_customer(self, mock_customer_context: CustomerSuccessContext):
         """Test creating new customer when not found."""
         new_customer = Customer(
             id=uuid4(),
             email="new@example.com",
             phone="+1111111111",
             name=None,
-            meta_data={"tier": "standard"},
+            metadata_={"tier": "standard"},
         )
 
         # Update context with new customer contact info (simulating incoming request)
         mock_customer_context.customer_email = "new@example.com"
         mock_customer_context.customer_phone = "+1111111111"
+        # Provide mock database session
+        mock_customer_context.db_session = MagicMock()
 
         with patch(
             "src.agent.tools.identify_customer.get_customer_by_identifier",
             new_callable=AsyncMock,
         ) as mock_get_customer, patch(
-            "src.database.queries.customer.create_customer",
+            "src.database.queries.create_customer",
             new_callable=AsyncMock,
         ) as mock_create_customer, patch(
             "src.agent.tools.identify_customer.create_customer_identifier",
@@ -143,7 +149,7 @@ class TestIdentifyCustomerTool:
             assert mock_customer_context.customer_phone == "+1111111111"
 
     @pytest.mark.asyncio
-    async def test_error_no_contact_info(self, mock_customer_context):
+    async def test_error_no_contact_info(self, mock_customer_context: CustomerSuccessContext):
         """Test error when neither email nor phone in context."""
         # Clear contact info from context
         mock_customer_context.customer_email = None
@@ -168,7 +174,7 @@ class TestSearchKnowledgeBaseTool:
     """Unit tests for search_knowledge_base tool."""
 
     @pytest.mark.asyncio
-    async def test_search_finds_relevant_articles(self, mock_customer_context):
+    async def test_search_finds_relevant_articles(self, mock_customer_context: CustomerSuccessContext):
         """Test searching knowledge base returns relevant articles."""
         mock_articles = [
             (
@@ -221,7 +227,7 @@ class TestSearchKnowledgeBaseTool:
             assert len(mock_customer_context.knowledge_articles_retrieved) == 2
 
     @pytest.mark.asyncio
-    async def test_search_no_results(self, mock_customer_context):
+    async def test_search_no_results(self, mock_customer_context: CustomerSuccessContext):
         """Test search with no relevant articles found."""
         with patch(
             "src.agent.tools.search_knowledge_base.db_search_knowledge_base",
@@ -257,17 +263,25 @@ class TestCreateTicketTool:
     """Unit tests for create_ticket tool."""
 
     @pytest.mark.asyncio
-    async def test_create_ticket_success(self, mock_customer_context):
+    async def test_create_ticket_success(self, mock_customer_context: CustomerSuccessContext):
         """Test successful ticket creation."""
+        customer_id = uuid4()
+        conversation_id = uuid4()
+
         mock_ticket = Ticket(
             id=uuid4(),
-            conversation_id=uuid4(),
-            customer_id=uuid4(),
+            conversation_id=conversation_id,
+            customer_id=customer_id,
             source_channel=Channel.API,
             category="technical",
             priority=Priority.HIGH,
             status=TicketStatus.OPEN,
         )
+
+        # Set required context properties
+        mock_customer_context.customer_id = str(customer_id)
+        mock_customer_context.conversation_id = str(conversation_id)
+        mock_customer_context.db_session = MagicMock()
 
         with patch(
             "src.agent.tools.create_ticket.db_create_ticket",
@@ -314,12 +328,14 @@ class TestGetCustomerHistoryTool:
     """Unit tests for get_customer_history tool."""
 
     @pytest.mark.asyncio
-    async def test_get_history_with_conversations(self, mock_customer_context):
+    async def test_get_history_with_conversations(self, mock_customer_context: CustomerSuccessContext):
         """Test retrieving customer history with conversations."""
+        customer_id = uuid4()
+
         mock_conversations = [
             Conversation(
                 id=uuid4(),
-                customer_id=uuid4(),
+                customer_id=customer_id,
                 initial_channel=Channel.EMAIL,
                 status=ConversationStatus.RESOLVED,
                 sentiment_score=0.8,
@@ -338,6 +354,10 @@ class TestGetCustomerHistoryTool:
                 created_at=MagicMock(),
             )
         ]
+
+        # Set required context properties
+        mock_customer_context.customer_id = str(customer_id)
+        mock_customer_context.db_session = MagicMock()
 
         with patch(
             "src.agent.tools.get_customer_history.list_customer_conversations",
@@ -359,8 +379,12 @@ class TestGetCustomerHistoryTool:
             assert "positive" in result.lower()  # sentiment > 0.3
 
     @pytest.mark.asyncio
-    async def test_get_history_no_conversations(self, mock_customer_context):
+    async def test_get_history_no_conversations(self, mock_customer_context: CustomerSuccessContext):
         """Test retrieving history for new customer."""
+        # Set required context properties
+        mock_customer_context.customer_id = str(uuid4())
+        mock_customer_context.db_session = MagicMock()
+
         with patch(
             "src.agent.tools.get_customer_history.list_customer_conversations",
             new_callable=AsyncMock,
@@ -386,12 +410,13 @@ class TestSendResponseTool:
     """Unit tests for send_response tool."""
 
     @pytest.mark.asyncio
-    async def test_send_response_success(self, mock_customer_context):
+    async def test_send_response_success(self, mock_customer_context: CustomerSuccessContext):
         """Test successful response sending."""
+        conversation_id = uuid4()
 
         mock_message = Message(
             id=uuid4(),
-            conversation_id=uuid4(),
+            conversation_id=conversation_id,
             channel=Channel.API,
             direction=MessageDirection.OUTBOUND,
             role=MessageRole.AGENT,
@@ -399,6 +424,10 @@ class TestSendResponseTool:
             tokens_used=100,
             latency_ms=500,
         )
+
+        # Set required context properties
+        mock_customer_context.conversation_id = str(conversation_id)
+        mock_customer_context.db_session = MagicMock()
 
         with patch(
             "src.agent.tools.send_response.create_message",

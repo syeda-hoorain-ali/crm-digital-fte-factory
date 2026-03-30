@@ -1,7 +1,7 @@
 """Unit tests for ChannelMessage schema validation."""
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import ValidationError
 
 from src.kafka.schemas import (
@@ -25,7 +25,7 @@ class TestChannelMessageSchema:
             direction=MessageDirection.CUSTOMER_TO_SUPPORT,
             customer_contact="test@example.com",
             body="Test message",
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
 
         assert message.message_id == "msg-123"
@@ -35,8 +35,8 @@ class TestChannelMessageSchema:
 
     def test_create_full_message(self):
         """Test creating message with all fields."""
-        timestamp = datetime.utcnow()
-        received_at = datetime.utcnow()
+        timestamp = datetime.now(timezone.utc)
+        received_at = datetime.now(timezone.utc)
 
         message = ChannelMessage(
             message_id="msg-123",
@@ -74,7 +74,7 @@ class TestChannelMessageSchema:
     def test_missing_required_fields(self):
         """Test validation error when required fields missing."""
         with pytest.raises(ValidationError) as exc_info:
-            ChannelMessage(
+            ChannelMessage(  # type: ignore[assignment]
                 message_id="msg-123",
                 # Missing channel, message_type, direction, customer_contact, body, timestamp
             )
@@ -91,7 +91,7 @@ class TestChannelMessageSchema:
             direction=MessageDirection.CUSTOMER_TO_SUPPORT,
             customer_contact="+1234567890",
             body="Test message",
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
 
         assert message.channel == Channel.WHATSAPP
@@ -101,12 +101,12 @@ class TestChannelMessageSchema:
         with pytest.raises(ValidationError):
             ChannelMessage(
                 message_id="msg-123",
-                channel="invalid_channel",
+                channel="invalid_channel",  # type: ignore[assignment]
                 message_type=MessageType.INBOUND,
                 direction=MessageDirection.CUSTOMER_TO_SUPPORT,
                 customer_contact="test@example.com",
                 body="Test message",
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(timezone.utc)
             )
 
     def test_message_type_enum(self):
@@ -118,7 +118,7 @@ class TestChannelMessageSchema:
             direction=MessageDirection.CUSTOMER_TO_SUPPORT,
             customer_contact="test@example.com",
             body="Inbound message",
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
 
         outbound = ChannelMessage(
@@ -128,7 +128,7 @@ class TestChannelMessageSchema:
             direction=MessageDirection.SUPPORT_TO_CUSTOMER,
             customer_contact="test@example.com",
             body="Outbound message",
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
 
         assert inbound.message_type == MessageType.INBOUND
@@ -143,7 +143,7 @@ class TestChannelMessageSchema:
             direction=MessageDirection.CUSTOMER_TO_SUPPORT,
             customer_contact="test@example.com",
             body="Test message",
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
 
         assert message.customer_id is None
@@ -163,7 +163,7 @@ class TestChannelMessageSchema:
             direction=MessageDirection.CUSTOMER_TO_SUPPORT,
             customer_contact="test@example.com",
             body="Test message",
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
 
         assert message.attachments == []
@@ -177,7 +177,7 @@ class TestChannelMessageSchema:
             direction=MessageDirection.CUSTOMER_TO_SUPPORT,
             customer_contact="test@example.com",
             body="Test message",
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
 
         assert message.metadata == {}
@@ -204,7 +204,7 @@ class TestChannelMessageSchema:
             direction=MessageDirection.CUSTOMER_TO_SUPPORT,
             customer_contact="test@example.com",
             body="Test message",
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
 
         json_data = message.model_dump(mode='json')

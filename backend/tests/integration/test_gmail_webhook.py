@@ -124,7 +124,7 @@ class TestGmailWebhook:
     async def test_gmail_webhook_success(
         self,
         client: TestClient,
-        session: AsyncSession,
+        _session: AsyncSession,
         pubsub_notification: dict,
         channel_message: ChannelMessage,
         mock_gmail_handler: AsyncMock,
@@ -149,7 +149,7 @@ class TestGmailWebhook:
         assert 'request_id' in data
 
         # Verify customer created
-        customer = await session.execute(
+        customer = await _session.execute(
             select(Customer).where(Customer.email == 'customer@example.com')
         )
         customer = customer.first()
@@ -157,7 +157,7 @@ class TestGmailWebhook:
         assert customer.name == 'John Doe'
 
         # Verify conversation created
-        conversation = await session.execute(
+        conversation = await _session.execute(
             select(Conversation).where(Conversation.customer_id == customer.id)
         )
         conversation = conversation.first()
@@ -166,7 +166,7 @@ class TestGmailWebhook:
         assert conversation.status == ConversationStatus.ACTIVE
 
         # Verify message created
-        message = await session.execute(
+        message = await _session.execute(
             select(Message).where(Message.conversation_id == conversation.id)
         )
         message = message.first()
@@ -177,7 +177,7 @@ class TestGmailWebhook:
         assert message.role == MessageRole.CUSTOMER
 
         # Verify ticket created
-        ticket = await session.execute(
+        ticket = await _session.execute(
             select(Ticket).where(Ticket.conversation_id == conversation.id)
         )
         ticket = ticket.first()
@@ -185,7 +185,7 @@ class TestGmailWebhook:
         assert ticket.source_channel == Channel.EMAIL
 
         # Verify webhook log
-        webhook_log = await session.execute(
+        webhook_log = await _session.execute(
             select(WebhookDeliveryLog).where(
                 WebhookDeliveryLog.webhook_type == 'gmail'
             )
@@ -234,7 +234,7 @@ class TestGmailWebhook:
     async def test_gmail_webhook_rate_limit_exceeded(
         self,
         client: TestClient,
-        session: AsyncSession,
+        _session: AsyncSession,
         pubsub_notification: dict,
         channel_message: ChannelMessage,
         mock_gmail_handler: AsyncMock,
@@ -257,7 +257,7 @@ class TestGmailWebhook:
         assert response.headers.get('Retry-After') == '60'
 
         # Verify webhook log marked as failed
-        webhook_log = await session.execute(
+        webhook_log = await _session.execute(
             select(WebhookDeliveryLog).where(
                 WebhookDeliveryLog.webhook_type == 'gmail'
             )
@@ -270,7 +270,7 @@ class TestGmailWebhook:
     async def test_gmail_webhook_reply_to_existing_conversation(
         self,
         client: TestClient,
-        session: AsyncSession,
+        _session: AsyncSession,
         pubsub_notification: dict,
         mock_gmail_handler: AsyncMock,
         mock_kafka_producer: AsyncMock,
@@ -282,18 +282,18 @@ class TestGmailWebhook:
             email='customer@example.com',
             name='John Doe'
         )
-        session.add(customer)
-        await session.commit()
-        await session.refresh(customer)
+        _session.add(customer)
+        await _session.commit()
+        await _session.refresh(customer)
 
         conversation = Conversation(
             customer_id=customer.id,
             initial_channel=Channel.EMAIL,
             status=ConversationStatus.ACTIVE
         )
-        session.add(conversation)
-        await session.commit()
-        await session.refresh(conversation)
+        _session.add(conversation)
+        await _session.commit()
+        await _session.refresh(conversation)
 
         # Create existing message with thread ID
         existing_message = Message(
@@ -305,8 +305,8 @@ class TestGmailWebhook:
             thread_id='thread_123',
             delivery_status=DeliveryStatus.DELIVERED
         )
-        session.add(existing_message)
-        await session.commit()
+        _session.add(existing_message)
+        await _session.commit()
 
         # Create reply channel message
         from src.kafka.schemas import (
@@ -350,14 +350,14 @@ class TestGmailWebhook:
         assert response.status_code == 200
 
         # Verify no new conversation created
-        conversations = await session.execute(
+        conversations = await _session.execute(
             select(Conversation).where(Conversation.customer_id == customer.id)
         )
         conversations = conversations.all()
         assert len(conversations) == 1
 
         # Verify new message added to existing conversation
-        messages = await session.execute(
+        messages = await _session.execute(
             select(Message).where(Message.conversation_id == conversation.id)
         )
         messages = messages.all()
@@ -365,7 +365,7 @@ class TestGmailWebhook:
         assert messages[1].content == 'Follow-up question'
 
         # Verify no new ticket created
-        tickets = await session.execute(
+        tickets = await _session.execute(
             select(Ticket).where(Ticket.conversation_id == conversation.id)
         )
         tickets = tickets.all()
@@ -447,7 +447,7 @@ class TestGmailWebhook:
     async def test_gmail_webhook_kafka_send_failure(
         self,
         client: TestClient,
-        session: AsyncSession,
+        _session: AsyncSession,
         pubsub_notification: dict,
         channel_message: ChannelMessage,
         mock_gmail_handler: AsyncMock,
@@ -469,7 +469,7 @@ class TestGmailWebhook:
         assert response.status_code == 200
 
         # Verify webhook log still marked as completed
-        webhook_log = await session.execute(
+        webhook_log = await _session.execute(
             select(WebhookDeliveryLog).where(
                 WebhookDeliveryLog.webhook_type == 'gmail'
             )

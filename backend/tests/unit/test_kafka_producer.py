@@ -8,13 +8,13 @@ from aiokafka.errors import KafkaError
 from src.kafka.producer import KafkaMessageProducer
 from src.kafka.schemas import ChannelMessage, Channel, MessageType, MessageDirection
 from src.kafka.topics import KafkaTopic
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 @pytest.fixture
 def sample_channel_message():
     """Create sample channel message for testing."""
-    return ChannelMessage(
+    return ChannelMessage(  # type: ignore
         message_id="msg-123",
         channel=Channel.EMAIL,
         message_type=MessageType.INBOUND,
@@ -24,7 +24,7 @@ def sample_channel_message():
         customer_name="Test Customer",
         subject="Test Subject",
         body="Test message body",
-        timestamp=datetime.utcnow()
+        timestamp=datetime.now(timezone.utc)
     )
 
 
@@ -114,7 +114,7 @@ class TestKafkaMessageProducer:
     @pytest.mark.asyncio
     async def test_send_message_without_customer_id(self):
         """Test sending message without customer_id."""
-        message = ChannelMessage(
+        message = ChannelMessage(  # type: ignore
             message_id="msg-123",
             channel=Channel.EMAIL,
             message_type=MessageType.INBOUND,
@@ -122,7 +122,7 @@ class TestKafkaMessageProducer:
             customer_id=None,
             customer_contact="test@example.com",
             body="Test body",
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
 
         producer = KafkaMessageProducer("localhost:9092")

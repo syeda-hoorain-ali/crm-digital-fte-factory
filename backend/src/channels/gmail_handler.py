@@ -2,7 +2,7 @@
 
 import logging
 from typing import Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 from google.oauth2.credentials import Credentials
 
@@ -188,7 +188,7 @@ class GmailHandler(BaseChannelHandler):
             # Parse timestamp
             timestamp = self.parser.parse_timestamp(parsed.get('date'))
             if not timestamp:
-                timestamp = datetime.utcnow()
+                timestamp = datetime.now(timezone.utc)
 
             # Create channel message
             channel_message = self.create_channel_message(

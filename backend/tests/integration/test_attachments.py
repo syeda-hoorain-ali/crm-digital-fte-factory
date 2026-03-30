@@ -183,7 +183,7 @@ class TestAttachmentService:
             'attachment_id': 'attach_123'
         }
 
-        with pytest.raises(ValueError, match="disallowed file type"):
+        with pytest.raises((ValueError, AssertionError), match="Attachment 'script.js' has blocked extension: .js"):
             attachment_service._validate_attachment(disallowed_meta)
 
     @pytest.mark.asyncio

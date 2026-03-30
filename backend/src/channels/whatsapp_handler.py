@@ -2,7 +2,7 @@
 
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 from twilio.request_validator import RequestValidator
 
@@ -103,7 +103,7 @@ class WhatsAppHandler(BaseChannelHandler):
             body=message_body,
             customer_name=payload.get("ProfileName"),
             metadata=metadata,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
 
     async def send_outbound_message(

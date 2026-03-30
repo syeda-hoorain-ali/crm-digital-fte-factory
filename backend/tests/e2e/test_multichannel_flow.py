@@ -30,7 +30,7 @@ class TestMultiChannelE2E:
     @pytest.mark.asyncio
     async def test_complete_multichannel_flow(
         self,
-        e2e_session: AsyncSession,
+        session: AsyncSession,
         clean_test_data,
         client_with_kafka: AsyncClient,
         kafka_consumer: AIOKafkaConsumer
@@ -92,7 +92,7 @@ class TestMultiChannelE2E:
         assert kafka_message['metadata']['category'] == 'billing'
 
         # Verify customer created
-        identification_service = CustomerIdentificationService(e2e_session)
+        identification_service = CustomerIdentificationService(session)
         customer = await identification_service.find_customer_by_any_identifier(
             email="alice@example.com"
         )
@@ -101,7 +101,7 @@ class TestMultiChannelE2E:
         assert customer.name == "Alice Johnson"
 
         # Verify conversation created
-        conversation_service = ConversationService(e2e_session)
+        conversation_service = ConversationService(session)
         conversations = await conversation_service.find_related_conversations(
             customer_id=customer.id,
             max_age_hours=24
@@ -126,9 +126,9 @@ class TestMultiChannelE2E:
             initial_channel=Channel.EMAIL,
             status=ConversationStatus.ACTIVE
         )
-        e2e_session.add(email_conversation)
-        await e2e_session.commit()
-        await e2e_session.refresh(email_conversation)
+        session.add(email_conversation)
+        await session.commit()
+        await session.refresh(email_conversation)
 
         # Add email message
         email_message = Message(
@@ -139,8 +139,8 @@ class TestMultiChannelE2E:
             content="Following up on my billing question from the web form",
             delivery_status=DeliveryStatus.DELIVERED
         )
-        e2e_session.add(email_message)
-        await e2e_session.commit()
+        session.add(email_message)
+        await session.commit()
 
         # Step 3: Verify cross-channel recognition
         # Customer should now have 2 conversations
@@ -161,9 +161,9 @@ class TestMultiChannelE2E:
             initial_channel=Channel.WHATSAPP,
             status=ConversationStatus.ACTIVE
         )
-        e2e_session.add(whatsapp_conversation)
-        await e2e_session.commit()
-        await e2e_session.refresh(whatsapp_conversation)
+        session.add(whatsapp_conversation)
+        await session.commit()
+        await session.refresh(whatsapp_conversation)
 
         whatsapp_message = Message(
             conversation_id=whatsapp_conversation.id,
@@ -173,8 +173,8 @@ class TestMultiChannelE2E:
             content="Quick question about the invoice charges",
             delivery_status=DeliveryStatus.DELIVERED
         )
-        e2e_session.add(whatsapp_message)
-        await e2e_session.commit()
+        session.add(whatsapp_message)
+        await session.commit()
 
         # Step 5: Verify unified customer history
         history = await conversation_service.get_customer_conversation_history(
@@ -253,10 +253,10 @@ class TestMultiChannelE2E:
         assert kafka_message.get('customer_id') == str(customer.id)
 
     @pytest.mark.asyncio
-    async def test_cross_channel_conversation_linking(self, e2e_session: AsyncSession):
+    async def test_cross_channel_conversation_linking(self, session: AsyncSession):
         """Test that conversations are properly linked across channels."""
-        identification_service = CustomerIdentificationService(e2e_session)
-        conversation_service = ConversationService(e2e_session)
+        identification_service = CustomerIdentificationService(session)
+        conversation_service = ConversationService(session)
 
         # Create customer
         customer = await identification_service.find_or_create_customer_by_email(
@@ -270,9 +270,9 @@ class TestMultiChannelE2E:
             initial_channel=Channel.WEB_FORM,
             status=ConversationStatus.ACTIVE
         )
-        e2e_session.add(conv1)
-        await e2e_session.commit()
-        await e2e_session.refresh(conv1)
+        session.add(conv1)
+        await session.commit()
+        await session.refresh(conv1)
 
         # Add message about technical issue
         msg1 = Message(
@@ -283,8 +283,8 @@ class TestMultiChannelE2E:
             content="I'm having trouble logging into my account and resetting password",
             delivery_status=DeliveryStatus.DELIVERED
         )
-        e2e_session.add(msg1)
-        await e2e_session.commit()
+        session.add(msg1)
+        await session.commit()
 
         # Create second conversation (email) with similar content
         conv2 = Conversation(
@@ -292,9 +292,9 @@ class TestMultiChannelE2E:
             initial_channel=Channel.EMAIL,
             status=ConversationStatus.ACTIVE
         )
-        e2e_session.add(conv2)
-        await e2e_session.commit()
-        await e2e_session.refresh(conv2)
+        session.add(conv2)
+        await session.commit()
+        await session.refresh(conv2)
 
         # Detect continuity
         related = await conversation_service.detect_conversation_continuity(
@@ -315,7 +315,7 @@ class TestMultiChannelE2E:
         )
 
         # Verify metadata updated
-        await e2e_session.refresh(conv2)
+        await session.refresh(conv2)
         assert 'related_conversation_id' in conv2.metadata_
         assert conv2.metadata_['related_conversation_id'] == str(conv1.id)
         assert conv2.metadata_['continuation_detected'] is True
@@ -323,7 +323,7 @@ class TestMultiChannelE2E:
     @pytest.mark.asyncio
     async def test_rate_limiting_across_channels(
         self,
-        e2e_session: AsyncSession,
+        session: AsyncSession,
         clean_test_data,
         client_with_kafka: AsyncClient,
         kafka_consumer: AIOKafkaConsumer
@@ -384,10 +384,10 @@ class TestMultiChannelE2E:
         assert len(messages_received) >= 1, "At least one message should reach Kafka"
 
     @pytest.mark.asyncio
-    async def test_conversation_reopening(self, e2e_session: AsyncSession):
+    async def test_conversation_reopening(self, session: AsyncSession):
         """Test that closed conversations can be reopened."""
-        identification_service = CustomerIdentificationService(e2e_session)
-        conversation_service = ConversationService(e2e_session)
+        identification_service = CustomerIdentificationService(session)
+        conversation_service = ConversationService(session)
 
         # Create customer and conversation
         customer = await identification_service.find_or_create_customer_by_email(
@@ -399,23 +399,23 @@ class TestMultiChannelE2E:
             initial_channel=Channel.EMAIL,
             status=ConversationStatus.ACTIVE
         )
-        e2e_session.add(conversation)
-        await e2e_session.commit()
-        await e2e_session.refresh(conversation)
+        session.add(conversation)
+        await session.commit()
+        await session.refresh(conversation)
 
         # Close conversation
         await conversation_service.close_conversation(
             conversation_id=conversation.id,
             resolution_type="resolved"
         )
-        await e2e_session.refresh(conversation)
+        await session.refresh(conversation)
 
         assert conversation.status == ConversationStatus.CLOSED
         assert conversation.ended_at is not None
 
         # Reopen conversation
         await conversation_service.reopen_conversation(conversation.id)
-        await e2e_session.refresh(conversation)
+        await session.refresh(conversation)
 
         assert conversation.status == ConversationStatus.ACTIVE
         assert conversation.ended_at is None

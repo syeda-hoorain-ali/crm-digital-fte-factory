@@ -54,17 +54,19 @@ class TestCrossChannelLinking:
     async def test_customer_linked_email_and_phone(self, session: AsyncSession):
         """Test linking customer who provides both email and phone."""
         identification_service = CustomerIdentificationService(session)
-
+        unique_email = f"customer{uuid4().hex[:8]}@example.com"
+        unique_phone = f"+12345{uuid4().hex[:6]}"
+        
         # Customer submits web form with email
         customer = await identification_service.find_or_create_customer_by_email(
-            email="customer@example.com",
+            email=unique_email,
             name="John Doe"
         )
 
         # Same customer messages via WhatsApp (phone)
         await identification_service.link_phone_to_customer(
             customer_id=customer.id,
-            phone="+1234567890"
+            phone=unique_phone
         )
 
         # Verify customer has both identifiers
@@ -77,10 +79,10 @@ class TestCrossChannelLinking:
 
         # Should be able to find customer by either identifier
         found_by_email = await identification_service.find_customer_by_any_identifier(
-            email="customer@example.com"
+            email=unique_email
         )
         found_by_phone = await identification_service.find_customer_by_any_identifier(
-            phone="+1234567890"
+            phone=unique_phone
         )
 
         assert found_by_email
@@ -415,7 +417,7 @@ class TestCrossChannelLinking:
 
         # Create conversations with different timestamps
         import time
-        conversations = []
+        conversations: list[Conversation] = []
         for i in range(3):
             conversation = Conversation(
                 customer_id=customer.id,

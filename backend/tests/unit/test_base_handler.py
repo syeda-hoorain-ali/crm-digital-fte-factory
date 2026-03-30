@@ -1,7 +1,7 @@
 """Unit tests for base channel handler."""
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 
 from src.channels.base import BaseChannelHandler
@@ -57,7 +57,7 @@ class TestBaseChannelHandler:
     def test_create_channel_message_full(self):
         """Test creating channel message with all fields."""
         handler = ConcreteChannelHandler(Channel.EMAIL)
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(timezone.utc)
 
         message = handler.create_channel_message(
             message_id="msg-123",

@@ -54,11 +54,14 @@ class TestAgentWorkflowIntegration:
     """Integration tests for complete agent workflow with real database."""
 
     @pytest.mark.asyncio
-    async def test_complete_customer_support_workflow(self, db_session: AsyncSession, test_customer: Customer):
+    async def test_complete_customer_support_workflow(self, session: AsyncSession, test_customer: Customer):
         """Test complete workflow: identify → search → respond using actual agent."""
+        # Ensure test customer has required fields
+        assert test_customer.email is not None
+
         # Setup: Create customer identifiers
         await create_customer_identifier(
-            db_session,
+            session,
             test_customer.id,
             IdentifierType.EMAIL,
             test_customer.email,
@@ -76,7 +79,7 @@ class TestAgentWorkflowIntegration:
         embedding = list(embedding_model.embed([article_data["content"]]))[0].tolist()
 
         await create_knowledge_base_entry(
-            db_session,
+            session,
             title=article_data["title"],
             content=article_data["content"],
             embedding=embedding,
@@ -86,17 +89,17 @@ class TestAgentWorkflowIntegration:
 
         # Setup: Create conversation
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.API,
             ConversationStatus.ACTIVE,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create context with customer email for identification
         context = CustomerSuccessContext(
-            db_session=db_session,
+            db_session=session,
             customer_email=test_customer.email,
             conversation_id=str(conversation.id),
             channel="api",
@@ -104,13 +107,13 @@ class TestAgentWorkflowIntegration:
 
         # Create session and hooks
         agent_session = PostgresSession(
-            session=db_session,
+            session=session,
             conversation_id=conversation.id,
             channel=Channel.API,
         )
 
         hooks = RunHooks(
-            session=db_session,
+            session=session,
             conversation_id=conversation.id,
             correlation_id=str(conversation.id),
         )
@@ -181,11 +184,11 @@ class TestAgentWorkflowIntegration:
         assert search_output is not None, "search_knowledge_base should have output"
         assert "Password Reset Guide" in search_output["output"], "Search should find the password reset article"
 
-        await db_session.commit()
+        await session.commit()
 
         # Verify messages were stored in conversation
         messages = await get_conversation_history(
-            db_session,
+            session,
             conversation.id,
             limit=10,
             offset=0,
@@ -200,11 +203,14 @@ class TestAgentWorkflowIntegration:
         assert "reset" in user_messages[0].content.lower()
 
     @pytest.mark.asyncio
-    async def test_escalation_workflow(self, db_session: AsyncSession, test_customer: Customer):
+    async def test_escalation_workflow(self, session: AsyncSession, test_customer: Customer):
         """Test escalation workflow with sentiment analysis using actual agent."""
+        # Ensure test customer has required fields
+        assert test_customer.email is not None
+
         # Setup: Create customer identifier
         await create_customer_identifier(
-            db_session,
+            session,
             test_customer.id,
             IdentifierType.EMAIL,
             test_customer.email,
@@ -212,7 +218,7 @@ class TestAgentWorkflowIntegration:
 
         # Setup: Create conversation
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.EMAIL,
             ConversationStatus.ACTIVE,
@@ -220,7 +226,7 @@ class TestAgentWorkflowIntegration:
 
         # Add previous message with negative sentiment
         await create_message(
-            db_session,
+            session,
             conversation.id,
             MessageRole.CUSTOMER,
             "I'm very frustrated with this service!",
@@ -228,11 +234,11 @@ class TestAgentWorkflowIntegration:
             Channel.EMAIL,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create context
         context = CustomerSuccessContext(
-            db_session=db_session,
+            db_session=session,
             customer_email=test_customer.email,
             conversation_id=str(conversation.id),
             channel="email",
@@ -240,13 +246,13 @@ class TestAgentWorkflowIntegration:
 
         # Create session and hooks
         agent_session = PostgresSession(
-            session=db_session,
+            session=session,
             conversation_id=conversation.id,
             channel=Channel.EMAIL,
         )
 
         hooks = RunHooks(
-            session=db_session,
+            session=session,
             conversation_id=conversation.id,
             correlation_id=str(conversation.id),
         )
@@ -302,21 +308,24 @@ class TestAgentWorkflowIntegration:
         assert context.escalation_triggered is True, "Escalation should be triggered in context"
         assert context.escalation_reason is not None, "Escalation reason should be set"
 
-        await db_session.commit()
+        await session.commit()
 
         # Verify conversation was updated in database
-        updated_conv = await get_conversation(db_session, conversation.id)
+        updated_conv = await get_conversation(session, conversation.id)
         assert updated_conv is not None, "Conversation should exist"
         assert updated_conv.status == ConversationStatus.ESCALATED, "Conversation status should be ESCALATED"
         assert updated_conv.escalated_to is not None, "Escalated_to field should be set"
         assert "@cloudstream.com" in updated_conv.escalated_to, "Should be escalated to support team email"
 
     @pytest.mark.asyncio
-    async def test_ticket_creation_workflow(self, db_session: AsyncSession, test_customer: Customer):
+    async def test_ticket_creation_workflow(self, session: AsyncSession, test_customer: Customer):
         """Test ticket creation workflow using actual agent."""
+        # Ensure test customer has required fields
+        assert test_customer.email is not None
+
         # Setup: Create customer identifier
         await create_customer_identifier(
-            db_session,
+            session,
             test_customer.id,
             IdentifierType.EMAIL,
             test_customer.email,
@@ -324,17 +333,17 @@ class TestAgentWorkflowIntegration:
 
         # Setup: Create conversation
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.WEB_FORM,
             ConversationStatus.ACTIVE,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create context
         context = CustomerSuccessContext(
-            db_session=db_session,
+            db_session=session,
             customer_email=test_customer.email,
             conversation_id=str(conversation.id),
             channel="web_form",
@@ -342,13 +351,13 @@ class TestAgentWorkflowIntegration:
 
         # Create session and hooks
         agent_session = PostgresSession(
-            session=db_session,
+            session=session,
             conversation_id=conversation.id,
             channel=Channel.WEB_FORM,
         )
 
         hooks = RunHooks(
-            session=db_session,
+            session=session,
             conversation_id=conversation.id,
             correlation_id=str(conversation.id),
         )
@@ -406,10 +415,10 @@ class TestAgentWorkflowIntegration:
         # Verify ticket was created in context
         assert context.ticket_id is not None, "Ticket ID should be set in context"
 
-        await db_session.commit()
+        await session.commit()
 
         # Verify ticket was created in database
-        tickets = await list_conversation_tickets(db_session, conversation.id)
+        tickets = await list_conversation_tickets(session, conversation.id)
         assert len(tickets) >= 1, "At least one ticket should be created"
 
         ticket = tickets[0]
@@ -419,16 +428,19 @@ class TestAgentWorkflowIntegration:
         assert str(ticket.id) == context.ticket_id, "Ticket ID in context should match database"
 
         # Verify messages were stored
-        messages = await get_conversation_history(db_session, conversation.id, limit=10, offset=0)
+        messages = await get_conversation_history(session, conversation.id, limit=10, offset=0)
         assert len(messages) >= 2, "Should have user message and agent response"
         assert any("billing" in m.content.lower() for m in messages), "Messages should mention billing"
 
     @pytest.mark.asyncio
-    async def test_customer_history_workflow(self, db_session: AsyncSession, test_customer: Customer):
+    async def test_customer_history_workflow(self, session: AsyncSession, test_customer: Customer):
         """Test customer history retrieval workflow using actual agent."""
+        # Ensure test customer has required fields
+        assert test_customer.email is not None
+
         # Setup: Create customer identifier
         await create_customer_identifier(
-            db_session,
+            session,
             test_customer.id,
             IdentifierType.EMAIL,
             test_customer.email,
@@ -436,14 +448,14 @@ class TestAgentWorkflowIntegration:
 
         # Setup: Create multiple conversations
         conv1 = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.EMAIL,
             ConversationStatus.RESOLVED,
         )
 
         conv2 = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.WHATSAPP,
             ConversationStatus.ACTIVE,
@@ -451,7 +463,7 @@ class TestAgentWorkflowIntegration:
 
         # Add messages to previous conversation
         await create_message(
-            db_session,
+            session,
             conv1.id,
             MessageRole.CUSTOMER,
             "Previous billing issue",
@@ -459,11 +471,11 @@ class TestAgentWorkflowIntegration:
             Channel.EMAIL,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create context for new conversation
         context = CustomerSuccessContext(
-            db_session=db_session,
+            db_session=session,
             customer_email=test_customer.email,
             conversation_id=str(conv2.id),
             channel="whatsapp",
@@ -471,13 +483,13 @@ class TestAgentWorkflowIntegration:
 
         # Create session and hooks
         agent_session = PostgresSession(
-            session=db_session,
+            session=session,
             conversation_id=conv2.id,
             channel=Channel.WHATSAPP,
         )
 
         hooks = RunHooks(
-            session=db_session,
+            session=session,
             conversation_id=conv2.id,
             correlation_id=str(conv2.id),
         )
@@ -537,10 +549,10 @@ class TestAgentWorkflowIntegration:
         # Verify final response references the previous issue
         assert "billing" in result.final_output.lower(), "Response should reference previous billing issue"
 
-        await db_session.commit()
+        await session.commit()
 
         # Verify messages were stored in current conversation
-        messages = await get_conversation_history(db_session, conv2.id, limit=10, offset=0)
+        messages = await get_conversation_history(session, conv2.id, limit=10, offset=0)
         assert len(messages) >= 2, "Should have user message and agent response"
         user_messages = [m for m in messages if m.role == MessageRole.CUSTOMER]
         agent_messages = [m for m in messages if m.role == MessageRole.AGENT]
@@ -549,57 +561,62 @@ class TestAgentWorkflowIntegration:
         assert "previous" in user_messages[0].content.lower(), "User message should ask about previous issue"
 
     @pytest.mark.asyncio
-    async def test_cross_channel_customer_unification(self, db_session):
+    async def test_cross_channel_customer_unification(self, session: AsyncSession):
         """Test customer unification across different channels using actual agent."""
-        # Create customer with both email and phone identifiers
+        import uuid
+        # Create customer with both email and phone identifiers (unique per test run)
+        unique_id = uuid.uuid4().hex[:8]
+        unique_email = f"john-{unique_id}@example.com"
+        unique_phone = f"+123456{unique_id[:4]}"
+
         customer = await create_customer(
-            db_session,
+            session,
             name="John Doe",
-            email="john@example.com",
-            phone="+1234567890",
+            email=unique_email,
+            phone=unique_phone,
         )
 
         await create_customer_identifier(
-            db_session,
+            session,
             customer.id,
             IdentifierType.EMAIL,
-            "john@example.com",
+            unique_email,
         )
 
         await create_customer_identifier(
-            db_session,
+            session,
             customer.id,
             IdentifierType.PHONE,
-            "+1234567890",
+            unique_phone,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Scenario 1: Customer contacts via email
         conv1 = await create_conversation(
-            db_session,
+            session,
             customer.id,
             Channel.EMAIL,
             ConversationStatus.ACTIVE,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         context1 = CustomerSuccessContext(
-            db_session=db_session,
-            customer_email="john@example.com",
+            db_session=session,
+            customer_email=unique_email,
             conversation_id=str(conv1.id),
             channel="email",
         )
 
         agent_session1 = PostgresSession(
-            session=db_session,
+            session=session,
             conversation_id=conv1.id,
             channel=Channel.EMAIL,
         )
 
         hooks1 = RunHooks(
-            session=db_session,
+            session=session,
             conversation_id=conv1.id,
             correlation_id=str(conv1.id),
         )
@@ -639,7 +656,7 @@ class TestAgentWorkflowIntegration:
         # Verify customer was identified via email
         customer_id_1 = context1.customer_id
         assert customer_id_1 == str(customer.id), "Customer should be identified via email"
-        assert context1.customer_email == "john@example.com", "Email should be set in context"
+        assert context1.customer_email == unique_email, "Email should be set in context"
 
         # Verify identification output
         identify_output_1 = next((to for to in tool_outputs_1 if any(tc["call_id"] == to["call_id"] and tc["name"] == "identify_customer" for tc in tool_calls_1)), None)
@@ -647,37 +664,37 @@ class TestAgentWorkflowIntegration:
         assert "Customer identified" in identify_output_1["output"], "Should confirm customer identification"
         assert str(customer.id) in identify_output_1["output"], "Output should contain customer ID"
 
-        await db_session.commit()
+        await session.commit()
 
         # Verify messages were stored for email conversation
-        messages_1 = await get_conversation_history(db_session, conv1.id, limit=10, offset=0)
+        messages_1 = await get_conversation_history(session, conv1.id, limit=10, offset=0)
         assert len(messages_1) >= 2, "Should have messages for email conversation"
 
         # Scenario 2: Same customer contacts via WhatsApp (phone)
         conv2 = await create_conversation(
-            db_session,
+            session,
             customer.id,
             Channel.WHATSAPP,
             ConversationStatus.ACTIVE,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         context2 = CustomerSuccessContext(
-            db_session=db_session,
-            customer_phone="+1234567890",
+            db_session=session,
+            customer_phone=unique_phone,
             conversation_id=str(conv2.id),
             channel="whatsapp",
         )
 
         agent_session2 = PostgresSession(
-            session=db_session,
+            session=session,
             conversation_id=conv2.id,
             channel=Channel.WHATSAPP,
         )
 
         hooks2 = RunHooks(
-            session=db_session,
+            session=session,
             conversation_id=conv2.id,
             correlation_id=str(conv2.id),
         )
@@ -717,7 +734,7 @@ class TestAgentWorkflowIntegration:
         # Verify customer was identified via phone
         customer_id_2 = context2.customer_id
         assert customer_id_2 == str(customer.id), "Customer should be identified via phone"
-        assert context2.customer_phone == "+1234567890", "Phone should be set in context"
+        assert context2.customer_phone == unique_phone, "Phone should be set in context"
 
         # Verify identification output
         identify_output_2 = next((to for to in tool_outputs_2 if any(tc["call_id"] == to["call_id"] and tc["name"] == "identify_customer" for tc in tool_calls_2)), None)
@@ -729,25 +746,31 @@ class TestAgentWorkflowIntegration:
         assert customer_id_1 == customer_id_2, "Same customer should be identified across email and WhatsApp"
         assert customer_id_1 == str(customer.id), "Customer ID should match the original customer"
 
-        await db_session.commit()
+        await session.commit()
 
         # Verify messages were stored for WhatsApp conversation
-        messages_2 = await get_conversation_history(db_session, conv2.id, limit=10, offset=0)
+        messages_2 = await get_conversation_history(session, conv2.id, limit=10, offset=0)
         assert len(messages_2) >= 2, "Should have messages for WhatsApp conversation"
 
         # Verify both conversations are linked to the same customer in database
-        conv1_updated = await get_conversation(db_session, conv1.id)
-        conv2_updated = await get_conversation(db_session, conv2.id)
+        conv1_updated = await get_conversation(session, conv1.id)
+        conv2_updated = await get_conversation(session, conv2.id)
+        
+        assert conv1_updated is not None
+        assert conv2_updated is not None
         assert conv1_updated.customer_id == customer.id, "Email conversation should be linked to customer"
         assert conv2_updated.customer_id == customer.id, "WhatsApp conversation should be linked to customer"
         assert conv1_updated.customer_id == conv2_updated.customer_id, "Both conversations should link to same customer"
 
     @pytest.mark.asyncio
-    async def test_context_state_management(self, db_session: AsyncSession, test_customer: Customer):
+    async def test_context_state_management(self, session: AsyncSession, test_customer: Customer):
         """Test context state is properly managed during agent execution."""
+        # Ensure test customer has required fields
+        assert test_customer.email is not None
+
         # Setup: Create customer identifier
         await create_customer_identifier(
-            db_session,
+            session,
             test_customer.id,
             IdentifierType.EMAIL,
             test_customer.email,
@@ -755,17 +778,17 @@ class TestAgentWorkflowIntegration:
 
         # Create conversation
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.API,
             ConversationStatus.ACTIVE,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create context with customer email
         context = CustomerSuccessContext(
-            db_session=db_session,
+            db_session=session,
             customer_email=test_customer.email,
             conversation_id=str(conversation.id),
             channel="api",
@@ -778,13 +801,13 @@ class TestAgentWorkflowIntegration:
 
         # Create session and hooks
         agent_session = PostgresSession(
-            session=db_session,
+            session=session,
             conversation_id=conversation.id,
             channel=Channel.API,
         )
 
         hooks = RunHooks(
-            session=db_session,
+            session=session,
             conversation_id=conversation.id,
             correlation_id=str(conversation.id),
         )
@@ -837,9 +860,9 @@ class TestAgentWorkflowIntegration:
         assert context.escalation_triggered is False, "Escalation should not be triggered"
         assert context.escalation_reason is None, "Escalation reason should remain None"
 
-        # Verify db_session is maintained in context
+        # Verify session is maintained in context
         assert context.db_session is not None, "Database session should be maintained in context"
-        assert context.db_session == db_session, "Database session should be the same instance"
+        assert context.db_session == session, "Database session should be the same instance"
 
         # Verify tool outputs confirm successful identification
         identify_output = next((to for to in tool_outputs if any(tc["call_id"] == to["call_id"] and tc["name"] == "identify_customer" for tc in tool_calls)), None)
@@ -847,10 +870,10 @@ class TestAgentWorkflowIntegration:
         assert "Customer identified" in identify_output["output"], "Should confirm customer identification"
         assert str(test_customer.id) in identify_output["output"], "Output should contain customer ID"
 
-        await db_session.commit()
+        await session.commit()
 
         # Verify messages were stored in database
-        messages = await get_conversation_history(db_session, conversation.id, limit=10, offset=0)
+        messages = await get_conversation_history(session, conversation.id, limit=10, offset=0)
         assert len(messages) >= 2, "Should have at least user message and agent response"
 
         user_messages = [m for m in messages if m.role == MessageRole.CUSTOMER]
@@ -861,28 +884,28 @@ class TestAgentWorkflowIntegration:
         assert "technical" in user_messages[0].content.lower(), "User message should mention technical issue"
 
         # Verify conversation state in database remains active
-        updated_conv = await get_conversation(db_session, conversation.id)
+        updated_conv = await get_conversation(session, conversation.id)
         assert updated_conv is not None, "Conversation should exist in database"
         assert updated_conv.status == ConversationStatus.ACTIVE, "Conversation should remain active"
         assert updated_conv.customer_id == test_customer.id, "Conversation should be linked to customer"
 
     @pytest.mark.asyncio
     @pytest.mark.skip
-    async def test_error_handling_in_workflow(self, db_session):
+    async def test_error_handling_in_workflow(self, session: AsyncSession):
         """Test agent handles errors gracefully when customer is not found."""
         # Create conversation without customer
         conversation = await create_conversation(
-            db_session,
-            None,  # No customer_id
+            session,
+            None,  # No customer_id  # type: ignore[assignment]
             Channel.API,
             ConversationStatus.ACTIVE,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create context with non-existent customer email
         context = CustomerSuccessContext(
-            db_session=db_session,
+            db_session=session,
             customer_email="nonexistent@example.com",
             conversation_id=str(conversation.id),
             channel="api",
@@ -890,13 +913,13 @@ class TestAgentWorkflowIntegration:
 
         # Create session and hooks
         agent_session = PostgresSession(
-            session=db_session,
+            session=session,
             conversation_id=conversation.id,
             channel=Channel.API,
         )
 
         hooks = RunHooks(
-            session=db_session,
+            session=session,
             conversation_id=conversation.id,
             correlation_id=str(conversation.id),
         )

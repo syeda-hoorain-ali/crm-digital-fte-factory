@@ -198,12 +198,12 @@ This is a web application with `backend/` and `frontend/` directories at reposit
 - [X] T092 [P] Add Prometheus metrics for webhook processing times and success rates
 - [X] T093 [P] Document API endpoints in OpenAPI format at backend/src/api/openapi.yaml
 - [X] T094 Write E2E test for complete multi-channel flow in backend/tests/e2e/test_multichannel_flow.py
-- [ ] T095 Run pytest with coverage report and verify 80%+ coverage: `pytest --cov=backend/src --cov-report=html`
-- [ ] T096 Validate quickstart.md procedures by running all test scenarios
-- [ ] T097 Security audit: verify HMAC implementation, rate limiting, and attachment validation
-- [ ] T098 Performance testing: verify 1,000 concurrent requests without degradation
-- [ ] T099 Create deployment guide in docs/deployment.md
-- [ ] T100 Update CLAUDE.md with final technology stack and commands
+- [X] T095 Run pytest with coverage report and verify 80%+ coverage: `pytest --cov=backend/src --cov-report=html`
+- [X] T096 Validate quickstart.md procedures by running all test scenarios
+- [X] T097 Security audit: verify HMAC implementation, rate limiting, and attachment validation
+- [X] T098 Performance testing: verify 1,000 concurrent requests without degradation
+- [X] T099 Create deployment guide in docs/deployment.md
+- [X] T100 Update CLAUDE.md with final technology stack and commands
 
 ---
 
