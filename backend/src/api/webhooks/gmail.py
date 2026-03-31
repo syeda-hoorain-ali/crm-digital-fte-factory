@@ -159,8 +159,6 @@ async def process_gmail_notification_background(
 
                 # If no new messages (notification was for label change, deletion, etc.), skip
                 if channel_message is None:
-                    logger.warning(f"[{request_id}] channel_message is None — no DB write will occur")
-                    return
                     logger.info(
                         "No new messages to process",
                         extra={"history_id": history_id, "request_id": request_id}

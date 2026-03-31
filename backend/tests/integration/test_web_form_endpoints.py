@@ -217,17 +217,16 @@ class TestWebFormSubmitEndpoint:
     @pytest.mark.asyncio
     async def test_submit_existing_customer_reuses_record(self, session):
         """Test submission with existing customer reuses customer record."""
-        # Create existing customer
-        async with get_session() as session:
-            existing_customer = Customer(
-                email="existing@example.com",
-                name="Existing Customer",
-                metadata_={"source": "previous"}
-            )
-            session.add(existing_customer)
-            await session.commit()
-            await session.refresh(existing_customer)
-            existing_customer_id = existing_customer.id
+        # Create existing customer using provided session fixture
+        existing_customer = Customer(
+            email="existing@example.com",
+            name="Existing Customer",
+            metadata_={"source": "previous"}
+        )
+        session.add(existing_customer)
+        await session.commit()
+        await session.refresh(existing_customer)
+        existing_customer_id = existing_customer.id
 
         form_data = {
             "name": "Existing Customer",
@@ -244,13 +243,12 @@ class TestWebFormSubmitEndpoint:
             assert response.status_code == 200
 
             # Verify customer was reused, not created
-            async with get_session() as session:
-                customer_result = await session.execute(
-                    select(Customer).where(Customer.email == form_data["email"])
-                )
-                customers = customer_result.all()
-                assert len(customers) == 1
-                assert customers[0].id == existing_customer_id
+            customer_result = await session.execute(
+                select(Customer).where(Customer.email == form_data["email"])
+            )
+            customers = customer_result.scalars().all()
+            assert len(customers) == 1
+            assert customers[0].id == existing_customer_id
 
     @pytest.mark.asyncio
     @patch("src.api.webhooks.web_form.rate_limiter")

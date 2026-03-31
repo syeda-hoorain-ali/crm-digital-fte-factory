@@ -56,3 +56,8 @@ coverage/
 *.tmp
 *.temp
 .cache/
+
+# OAuth credentials (Gmail API)
+*client_secret*.json
+receiver_client_secret.json
+sender_client_secret.json

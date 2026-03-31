@@ -311,10 +311,9 @@ class AttachmentService:
         Raises:
             Exception: If save fails
         """
+        temp_path = storage_path.with_suffix('.tmp')
         try:
             # Write file atomically using temporary file
-            temp_path = storage_path.with_suffix('.tmp')
-
             with open(temp_path, 'wb') as f:
                 f.write(data)
 
@@ -335,10 +334,17 @@ class AttachmentService:
                 extra={"path": str(storage_path)},
                 exc_info=True
             )
-            # Clean up temporary file if it exists
-            if temp_path.exists():
-                temp_path.unlink()
             raise
+        finally:
+            # Clean up temporary file if it still exists (rename failed)
+            if temp_path.exists():
+                try:
+                    temp_path.unlink()
+                except Exception as cleanup_error:
+                    logger.warning(
+                        f"Failed to clean up temporary file: {cleanup_error}",
+                        extra={"temp_path": str(temp_path)}
+                    )
 
     async def get_attachment(
         self,
