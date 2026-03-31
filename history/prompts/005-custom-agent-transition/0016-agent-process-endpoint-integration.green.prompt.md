@@ -11,13 +11,13 @@ user: developer
 command: implementation
 labels: ["fastapi", "agent", "endpoint", "runner", "trace", "observability"]
 links:
-  spec: /mnt/d/my-projects/crm-digital-fte-factory/specs/005-custom-agent-transition/spec.md
+  spec: specs/005-custom-agent-transition/spec.md
   ticket: null
   adr: null
   pr: null
 files:
-  - /mnt/d/my-projects/crm-digital-fte-factory/backend/src/main.py
-  - /mnt/d/my-projects/crm-digital-fte-factory/specs/005-custom-agent-transition/tasks.md
+  - backend/src/main.py
+  - specs/005-custom-agent-transition/tasks.md
 tests:
   - None (integration tests planned in T094)
 ---
@@ -28,7 +28,7 @@ Continue with T043-T046: Implement POST /agent/process endpoint with request/res
 
 ## Response snapshot
 
-Implemented complete POST /agent/process endpoint in `/mnt/d/my-projects/crm-digital-fte-factory/backend/src/main.py` with:
+Implemented complete POST /agent/process endpoint in `backend/src/main.py` with:
 
 **T043 - Request/Response Models:**
 - `ProcessInquiryRequest`: message (required), customer_email, customer_phone, channel (default: "api"), conversation_id (optional)

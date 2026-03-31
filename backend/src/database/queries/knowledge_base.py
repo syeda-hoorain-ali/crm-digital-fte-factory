@@ -50,7 +50,7 @@ async def create_knowledge_base_entry(
         content=content,
         embedding=embedding,
         category=category,
-        meta_data=metadata,
+        metadata_=metadata,
     )
     session.add(entry)
     await session.flush()
@@ -175,7 +175,7 @@ async def update_knowledge_base_entry(
     if embedding is not None:
         entry.embedding = embedding
     if metadata is not None:
-        entry.meta_data = metadata
+        entry.metadata_ = metadata
 
     entry.updated_at = datetime.now(timezone.utc)
     await session.flush()

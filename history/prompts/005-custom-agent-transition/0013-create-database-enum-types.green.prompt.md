@@ -11,14 +11,14 @@ user: wsl-user
 command: /implement
 labels: ["database", "models", "enums", "foundational"]
 links:
-  spec: /mnt/d/my-projects/crm-digital-fte-factory/specs/005-custom-agent-transition/spec.md
+  spec: specs/005-custom-agent-transition/spec.md
   ticket: null
   adr: null
   pr: null
 files:
-  - /mnt/d/my-projects/crm-digital-fte-factory/backend/src/database/__init__.py
-  - /mnt/d/my-projects/crm-digital-fte-factory/backend/src/database/models.py
-  - /mnt/d/my-projects/crm-digital-fte-factory/specs/005-custom-agent-transition/tasks.md
+  - backend/src/database/__init__.py
+  - backend/src/database/models.py
+  - specs/005-custom-agent-transition/tasks.md
 tests:
   - None (foundational code, tests in Phase 6)
 ---
@@ -68,7 +68,7 @@ class Channel(str, Enum):
 
 **After completion**: Mark T004 as completed in specs/005-custom-agent-transition/tasks.md
 
-Work in: /mnt/d/my-projects/crm-digital-fte-factory/backend
+Work in: backend
 
 ## Response snapshot
 

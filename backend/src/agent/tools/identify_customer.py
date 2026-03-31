@@ -107,7 +107,7 @@ async def identify_customer(
             context.context.customer_phone = phone or customer.phone
 
             # Get customer tier from metadata
-            tier = customer.meta_data.get("tier", "standard")
+            tier = customer.metadata_.get("tier", "standard")
 
             execution_time = (time.time() - start_time) * 1000
             logger.info(
@@ -125,7 +125,7 @@ async def identify_customer(
             return f"Customer identified: {customer.name or 'Unknown'} (ID: {customer.id}). Account tier: {tier}"
         else:
             # Create new customer using the updated create_customer function
-            from ...database.queries import create_customer
+            from src.database.queries import create_customer
 
             customer = await create_customer(
                 session,

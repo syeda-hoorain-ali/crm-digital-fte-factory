@@ -304,7 +304,7 @@ async def escalate_to_human(
 
         # 4. Check high-value account (T067)
         is_high_value, value_reason, value_priority = check_high_value_account(
-            customer.meta_data
+            customer.metadata_
         )
         if is_high_value:
             escalation_reasons.append(value_reason)

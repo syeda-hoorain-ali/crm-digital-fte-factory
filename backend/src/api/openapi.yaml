@@ -1,0 +1,477 @@
+"""OpenAPI documentation for Customer Success Agent API."""
+
+openapi: 3.0.3
+info:
+  title: Customer Success Agent API
+  description: |
+    Production-ready customer support agent with multi-channel intake (Email, WhatsApp, Web Form)
+    and cross-channel customer recognition.
+
+    ## Features
+    - Multi-channel customer intake (Email via Gmail, WhatsApp via Twilio, Web Form)
+    - Cross-channel customer recognition and unified conversation history
+    - AI-powered agent responses using OpenAI Agents SDK
+    - Rate limiting and HMAC signature verification for webhooks
+    - Prometheus metrics and health monitoring
+
+    ## Authentication
+    Webhook endpoints use HMAC signature verification. Customer API endpoints may require authentication (TBD).
+
+  version: 1.0.0
+  contact:
+    name: CRM Digital FTE Factory Team
+    email: support@example.com
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.example.com
+    description: Production server
+
+tags:
+  - name: support
+    description: Customer support form submission
+  - name: webhooks
+    description: Webhook endpoints for external integrations
+  - name: customers
+    description: Customer profile and history management
+  - name: health
+    description: Health check and monitoring
+
+paths:
+  /support/submit:
+    post:
+      tags:
+        - support
+      summary: Submit support request via web form
+      description: |
+        Submit a customer support request through the web form.
+        Creates a new customer if email doesn't exist, or links to existing customer.
+        Returns a ticket ID for tracking.
+      operationId: submitSupportRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupportFormRequest'
+      responses:
+        '200':
+          description: Support request submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportFormResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds to wait before retrying
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /support/ticket/{ticket_id}:
+    get:
+      tags:
+        - support
+      summary: Get ticket status and conversation history
+      description: Retrieve ticket status and all messages in the conversation
+      operationId: getTicketStatus
+      parameters:
+        - name: ticket_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Ticket UUID
+      responses:
+        '200':
+          description: Ticket status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketStatusResponse'
+        '404':
+          description: Ticket not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /webhooks/gmail:
+    post:
+      tags:
+        - webhooks
+      summary: Gmail Pub/Sub webhook
+      description: |
+        Receives Gmail push notifications via Google Cloud Pub/Sub.
+        Requires HMAC signature verification via X-Goog-Signature header.
+      operationId: gmailWebhook
+      parameters:
+        - name: X-Goog-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+          description: HMAC signature for webhook verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PubSubNotification'
+      responses:
+        '200':
+          description: Webhook processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message_id:
+                    type: string
+                  request_id:
+                    type: string
+        '401':
+          description: Invalid or missing signature
+        '429':
+          description: Rate limit exceeded
+
+  /webhooks/whatsapp:
+    post:
+      tags:
+        - webhooks
+      summary: WhatsApp message webhook (Twilio)
+      description: |
+        Receives WhatsApp messages via Twilio webhook.
+        Requires Twilio signature verification.
+      operationId: whatsappWebhook
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TwilioWebhookPayload'
+      responses:
+        '200':
+          description: Webhook processed successfully
+        '401':
+          description: Invalid signature
+        '429':
+          description: Rate limit exceeded
+
+  /api/customers/{customer_id}/profile:
+    get:
+      tags:
+        - customers
+      summary: Get customer profile
+      description: Retrieve customer profile with all linked identifiers (email, phone)
+      operationId: getCustomerProfile
+      parameters:
+        - name: customer_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Customer UUID
+      responses:
+        '200':
+          description: Customer profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerProfileResponse'
+        '404':
+          description: Customer not found
+
+  /api/customers/{customer_id}/history:
+    get:
+      tags:
+        - customers
+      summary: Get unified customer conversation history
+      description: |
+        Retrieve all conversations and messages for a customer across all channels.
+        Provides unified view of customer interactions.
+      operationId: getCustomerHistory
+      parameters:
+        - name: customer_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+          description: Maximum messages per conversation
+        - name: include_closed
+          in: query
+          schema:
+            type: boolean
+            default: true
+          description: Include closed conversations
+      responses:
+        '200':
+          description: Customer history retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerHistoryResponse'
+
+  /health:
+    get:
+      tags:
+        - health
+      summary: Health check endpoint
+      description: |
+        Comprehensive health check verifying connectivity to:
+        - Database (PostgreSQL)
+        - Redis (rate limiting)
+        - Kafka (message routing)
+      operationId: healthCheck
+      responses:
+        '200':
+          description: All systems healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: One or more systems unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /metrics:
+    get:
+      tags:
+        - health
+      summary: Prometheus metrics endpoint
+      description: Exposes Prometheus metrics for monitoring
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Metrics in Prometheus format
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  schemas:
+    SupportFormRequest:
+      type: object
+      required:
+        - name
+        - email
+        - subject
+        - category
+        - priority
+        - message
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 255
+          example: John Doe
+        email:
+          type: string
+          format: email
+          example: john@example.com
+        subject:
+          type: string
+          minLength: 5
+          maxLength: 500
+          example: Issue with billing
+        category:
+          type: string
+          enum: [general, technical, billing, feedback, bug_report]
+          example: billing
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+          example: medium
+        message:
+          type: string
+          minLength: 10
+          example: I have a question about my recent invoice charges.
+
+    SupportFormResponse:
+      type: object
+      properties:
+        ticket_id:
+          type: string
+          format: uuid
+        message:
+          type: string
+        estimated_response_time:
+          type: string
+
+    TicketStatusResponse:
+      type: object
+      properties:
+        ticket_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              content:
+                type: string
+              role:
+                type: string
+              created_at:
+                type: string
+                format: date-time
+
+    PubSubNotification:
+      type: object
+      required:
+        - message
+        - subscription
+      properties:
+        message:
+          type: object
+          properties:
+            data:
+              type: string
+              description: Base64-encoded message data
+            messageId:
+              type: string
+            publishTime:
+              type: string
+              format: date-time
+        subscription:
+          type: string
+
+    TwilioWebhookPayload:
+      type: object
+      properties:
+        MessageSid:
+          type: string
+        From:
+          type: string
+          example: whatsapp:+1234567890
+        To:
+          type: string
+        Body:
+          type: string
+        ProfileName:
+          type: string
+
+    CustomerProfileResponse:
+      type: object
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        phone:
+          type: string
+        name:
+          type: string
+        identifiers:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              value:
+                type: string
+              verified:
+                type: boolean
+        metadata:
+          type: object
+
+    CustomerHistoryResponse:
+      type: object
+      properties:
+        customer:
+          $ref: '#/components/schemas/CustomerProfileResponse'
+        conversations:
+          type: array
+          items:
+            type: object
+        total_conversations:
+          type: integer
+        total_messages:
+          type: integer
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        components:
+          type: object
+          properties:
+            database:
+              $ref: '#/components/schemas/ComponentHealth'
+            redis:
+              $ref: '#/components/schemas/ComponentHealth'
+            kafka:
+              $ref: '#/components/schemas/ComponentHealth'
+
+    ComponentHealth:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy, degraded, unknown]
+        message:
+          type: string
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            correlation_id:
+              type: string
+            timestamp:
+              type: string
+              format: date-time
+            details:
+              type: object

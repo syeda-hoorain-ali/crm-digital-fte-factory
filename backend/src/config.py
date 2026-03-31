@@ -114,6 +114,38 @@ class Settings(BaseSettings):
         description="Email for critical priority escalations"
     )
 
+    # Email Notification Configuration
+    smtp_host: str = Field(
+        default="smtp.gmail.com",
+        description="SMTP server hostname"
+    )
+    smtp_port: int = Field(
+        default=587,
+        description="SMTP server port",
+        ge=1,
+        le=65535
+    )
+    smtp_username: str = Field(
+        default="",
+        description="SMTP authentication username"
+    )
+    smtp_password: str = Field(
+        default="",
+        description="SMTP authentication password"
+    )
+    smtp_from_email: str = Field(
+        default="support@cloudstream.com",
+        description="Sender email address for notifications"
+    )
+    smtp_use_tls: bool = Field(
+        default=True,
+        description="Use TLS encryption for SMTP"
+    )
+    enable_email_notifications: bool = Field(
+        default=False,
+        description="Enable email notifications (requires SMTP configuration)"
+    )
+
     # Database Connection Pool
     db_pool_size: int = Field(
         default=10,
@@ -142,6 +174,66 @@ class Settings(BaseSettings):
         description="Minimum similarity score for knowledge base results",
         ge=0.0,
         le=1.0
+    )
+
+    # Twilio Configuration
+    twilio_account_sid: str = Field(
+        default="",
+        description="Twilio account SID (required for WhatsApp)"
+    )
+    twilio_auth_token: str = Field(
+        default="",
+        description="Twilio auth token (required for WhatsApp)"
+    )
+    twilio_whatsapp_from: str = Field(
+        default="",
+        description="Twilio WhatsApp sender number (format: whatsapp:+1234567890)"
+    )
+
+    # Gmail Configuration
+    gmail_test_account_email: str = Field(
+        default="",
+        description="Gmail test account email address (for E2E testing - sender account)"
+    )
+    gmail_test_credentials_path: str = Field(
+        default="",
+        description="Path to Gmail API OAuth credentials JSON file (for E2E testing - sender account)"
+    )
+    gmail_support_credentials_path: str = Field(
+        default="",
+        description="Path to Gmail API OAuth credentials JSON file (for receiver/support account)"
+    )
+    gmail_service_account_path: str = Field(
+        default="",
+        description="Path to Gmail API service account credentials JSON file (for production)"
+    )
+    gmail_support_address: str = Field(
+        default="",
+        description="Gmail address that receives customer emails (receiver/support account)"
+    )
+    gmail_pubsub_topic: str = Field(
+        default="",
+        description="Google Cloud Pub/Sub topic for Gmail notifications (format: projects/PROJECT_ID/topics/TOPIC_NAME)"
+    )
+    gmail_webhook_secret: str = Field(
+        default="",
+        description="Secret for validating Gmail webhook requests"
+    )
+    gcp_project_id: str = Field(
+        default="",
+        description="Google Cloud Platform project ID"
+    )
+
+    # Kafka Configuration
+    kafka_bootstrap_servers: str = Field(
+        default="localhost:9092",
+        description="Kafka bootstrap servers"
+    )
+
+    # Redis Configuration
+    redis_url: str = Field(
+        default="redis://localhost:6379",
+        description="Redis connection URL for rate limiting"
     )
 
     # Observability Configuration

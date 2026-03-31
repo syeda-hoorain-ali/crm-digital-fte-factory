@@ -41,7 +41,7 @@ All 34 tests now pass with consistent validation patterns, improving test reliab
 All 34 tests passing with updated validation patterns
 
 ## Files Summary
-/mnt/d/my-projects/crm-digital-fte-factory/mcp-server/tests/unit/test_mcp_server.py
+/mcp-server/tests/unit/test_mcp_server.py
 
 ## Next Prompts
 None needed - all tests updated successfully

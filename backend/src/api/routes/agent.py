@@ -61,6 +61,7 @@ class ProcessInquiryResponse(BaseModel):
     """Response model for processed customer inquiries."""
 
     response: str
+    customer_id: str
     conversation_id: str
     sentiment_score: float | None = None
     escalated: bool = False
@@ -201,6 +202,7 @@ async def process_inquiry(request: ProcessInquiryRequest):
                 sentiment_score=ctx.sentiment_score,
                 escalated=ctx.escalation_triggered,
                 escalation_reason=ctx.escalation_reason,
+                customer_id=str(customer.id),
             )
 
     except ValueError as e:

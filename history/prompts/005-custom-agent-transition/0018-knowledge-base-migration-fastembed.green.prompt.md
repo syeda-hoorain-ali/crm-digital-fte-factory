@@ -11,13 +11,13 @@ user: developer
 command: implementation
 labels: ["knowledge-base", "fastembed", "migration", "vector-embeddings", "pgvector"]
 links:
-  spec: /mnt/d/my-projects/crm-digital-fte-factory/specs/005-custom-agent-transition/spec.md
+  spec: specs/005-custom-agent-transition/spec.md
   ticket: null
   adr: null
   pr: null
 files:
-  - /mnt/d/my-projects/crm-digital-fte-factory/backend/scripts/migrate_knowledge_base.py
-  - /mnt/d/my-projects/crm-digital-fte-factory/specs/005-custom-agent-transition/tasks.md
+  - backend/scripts/migrate_knowledge_base.py
+  - specs/005-custom-agent-transition/tasks.md
 tests:
   - Tested migration with 4 markdown files from mcp-server/context/
 ---
@@ -28,7 +28,7 @@ Complete T037-T038: Create knowledge base migration script with FastEmbed integr
 
 ## Response snapshot
 
-Verified existing knowledge base migration script at `/mnt/d/my-projects/crm-digital-fte-factory/backend/scripts/migrate_knowledge_base.py` and successfully tested it (T037-T038):
+Verified existing knowledge base migration script at `backend/scripts/migrate_knowledge_base.py` and successfully tested it (T037-T038):
 
 **T037 - Migration Script Features:**
 - Reads markdown files from specified directory (default: mcp-server/context/)

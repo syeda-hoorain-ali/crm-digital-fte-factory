@@ -11,13 +11,13 @@ user: developer
 command: implementation
 labels: ["fastapi", "health-check", "lifespan", "database", "api"]
 links:
-  spec: /mnt/d/my-projects/crm-digital-fte-factory/specs/005-custom-agent-transition/spec.md
+  spec: specs/005-custom-agent-transition/spec.md
   ticket: null
   adr: null
   pr: null
 files:
-  - /mnt/d/my-projects/crm-digital-fte-factory/backend/src/main.py
-  - /mnt/d/my-projects/crm-digital-fte-factory/specs/005-custom-agent-transition/tasks.md
+  - backend/src/main.py
+  - specs/005-custom-agent-transition/tasks.md
 tests:
   - None (integration tests planned in T093)
 ---
@@ -83,11 +83,11 @@ async def health_check():
 
 **After completion**: Mark T040 and T041 as completed in specs/005-custom-agent-transition/tasks.md
 
-Work in: /mnt/d/my-projects/crm-digital-fte-factory/backend
+Work in: backend
 
 ## Response snapshot
 
-Created FastAPI application in `/mnt/d/my-projects/crm-digital-fte-factory/backend/src/main.py` with:
+Created FastAPI application in `backend/src/main.py` with:
 
 1. **Lifespan context manager** that handles:
    - Startup: Logs "Starting up..." and calls `init_db()` to initialize database connection with retry logic

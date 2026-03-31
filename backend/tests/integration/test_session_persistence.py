@@ -35,12 +35,12 @@ class TestPostgresSessionPersistence:
 
     @pytest.mark.asyncio
     async def test_get_items_retrieves_from_database(
-        self, db_session: AsyncSession, test_customer: Customer
+        self, session: AsyncSession, test_customer: Customer
     ):
         """Test get_items retrieves messages from database."""
         # Create conversation
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.API,
             ConversationStatus.ACTIVE,
@@ -48,7 +48,7 @@ class TestPostgresSessionPersistence:
 
         # Create messages
         await create_message(
-            db_session,
+            session,
             conversation.id,
             MessageRole.CUSTOMER,
             "Hello, I need help",
@@ -56,7 +56,7 @@ class TestPostgresSessionPersistence:
             Channel.API,
         )
         await create_message(
-            db_session,
+            session,
             conversation.id,
             MessageRole.AGENT,
             "I'd be happy to help!",
@@ -64,10 +64,10 @@ class TestPostgresSessionPersistence:
             Channel.API,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create PostgresSession
-        pg_session = PostgresSession(db_session, conversation.id, Channel.API)
+        pg_session = PostgresSession(session, conversation.id, Channel.API)
 
         # Get items
         items = await pg_session.get_items()
@@ -81,21 +81,21 @@ class TestPostgresSessionPersistence:
 
     @pytest.mark.asyncio
     async def test_add_items_persists_to_database(
-        self, db_session: AsyncSession, test_customer: Customer
+        self, session: AsyncSession, test_customer: Customer
     ):
         """Test add_items persists messages to database."""
         # Create conversation
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.API,
             ConversationStatus.ACTIVE,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create PostgresSession
-        pg_session = PostgresSession(db_session, conversation.id, Channel.API)
+        pg_session = PostgresSession(session, conversation.id, Channel.API)
 
         # Add items
         items = [
@@ -104,11 +104,11 @@ class TestPostgresSessionPersistence:
         ]
 
         await pg_session.add_items(cast(List[TResponseInputItem], items))
-        await db_session.commit()
+        await session.commit()
 
         # Verify messages were persisted
         messages = await get_conversation_history(
-            db_session,
+            session,
             conversation.id,
             limit=10,
             offset=0,
@@ -122,19 +122,19 @@ class TestPostgresSessionPersistence:
 
     @pytest.mark.asyncio
     async def test_pop_item_removes_from_database(
-        self, db_session: AsyncSession, test_customer: Customer
+        self, session: AsyncSession, test_customer: Customer
     ):
         """Test pop_item removes message from database."""
         # Create conversation with messages
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.API,
             ConversationStatus.ACTIVE,
         )
 
         await create_message(
-            db_session,
+            session,
             conversation.id,
             MessageRole.CUSTOMER,
             "First message",
@@ -142,7 +142,7 @@ class TestPostgresSessionPersistence:
             Channel.API,
         )
         await create_message(
-            db_session,
+            session,
             conversation.id,
             MessageRole.AGENT,
             "Second message",
@@ -150,14 +150,14 @@ class TestPostgresSessionPersistence:
             Channel.API,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create PostgresSession
-        pg_session = PostgresSession(db_session, conversation.id, Channel.API)
+        pg_session = PostgresSession(session, conversation.id, Channel.API)
 
         # Pop item
         popped = await pg_session.pop_item()
-        await db_session.commit()
+        await session.commit()
 
         # Verify message was removed
         assert popped is not None
@@ -165,7 +165,7 @@ class TestPostgresSessionPersistence:
 
         # Verify only one message remains
         messages = await get_conversation_history(
-            db_session,
+            session,
             conversation.id,
             limit=10,
             offset=0,
@@ -176,29 +176,29 @@ class TestPostgresSessionPersistence:
 
     @pytest.mark.asyncio
     async def test_session_persistence_across_runs(
-        self, db_session: AsyncSession, test_customer: Customer
+        self, session: AsyncSession, test_customer: Customer
     ):
         """Test session persists messages across multiple agent runs."""
         # Create conversation
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.API,
             ConversationStatus.ACTIVE,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # First agent run - add messages
-        pg_session_1 = PostgresSession(db_session, conversation.id, Channel.API)
+        pg_session_1 = PostgresSession(session, conversation.id, Channel.API)
         await pg_session_1.add_items([
             {"role": "user", "content": "Message 1"},
             {"role": "assistant", "content": "Response 1"},
         ])
-        await db_session.commit()
+        await session.commit()
 
         # Second agent run - retrieve and add more messages
-        pg_session_2 = PostgresSession(db_session, conversation.id, Channel.API)
+        pg_session_2 = PostgresSession(session, conversation.id, Channel.API)
         items = await pg_session_2.get_items()
 
         # Verify previous messages are available
@@ -209,10 +209,10 @@ class TestPostgresSessionPersistence:
             {"role": "user", "content": "Message 2"},
             {"role": "assistant", "content": "Response 2"},
         ])
-        await db_session.commit()
+        await session.commit()
 
         # Third agent run - verify all messages
-        pg_session_3 = PostgresSession(db_session, conversation.id, Channel.API)
+        pg_session_3 = PostgresSession(session, conversation.id, Channel.API)
         all_items = await pg_session_3.get_items()
 
         assert len(all_items) == 4
@@ -221,19 +221,19 @@ class TestPostgresSessionPersistence:
 
     @pytest.mark.asyncio
     async def test_clear_session_preserves_data(
-        self, db_session: AsyncSession, test_customer: Customer
+        self, session: AsyncSession, test_customer: Customer
     ):
         """Test clear_session does not delete messages (no-op)."""
         # Create conversation with messages
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.API,
             ConversationStatus.ACTIVE,
         )
 
         await create_message(
-            db_session,
+            session,
             conversation.id,
             MessageRole.CUSTOMER,
             "Important message",
@@ -241,16 +241,16 @@ class TestPostgresSessionPersistence:
             Channel.API,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create PostgresSession and clear
-        pg_session = PostgresSession(db_session, conversation.id, Channel.API)
+        pg_session = PostgresSession(session, conversation.id, Channel.API)
         await pg_session.clear_session()
-        await db_session.commit()
+        await session.commit()
 
         # Verify message still exists
         messages = await get_conversation_history(
-            db_session,
+            session,
             conversation.id,
             limit=10,
             offset=0,
@@ -261,12 +261,12 @@ class TestPostgresSessionPersistence:
 
     @pytest.mark.asyncio
     async def test_session_handles_tool_calls(
-        self, db_session: AsyncSession, test_customer: Customer
+        self, session: AsyncSession, test_customer: Customer
     ):
         """Test session correctly handles messages with tool_calls."""
         # Create conversation
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.API,
             ConversationStatus.ACTIVE,
@@ -285,7 +285,7 @@ class TestPostgresSessionPersistence:
         ]
 
         await create_message(
-            db_session,
+            session,
             conversation.id,
             MessageRole.AGENT,
             "Let me identify you",
@@ -294,10 +294,10 @@ class TestPostgresSessionPersistence:
             tool_calls=tool_calls,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create PostgresSession and retrieve
-        pg_session = PostgresSession(db_session, conversation.id, Channel.API)
+        pg_session = PostgresSession(session, conversation.id, Channel.API)
         items = await pg_session.get_items()
 
         # Verify tool_calls are reconstructed as separate function_call_output items
@@ -317,21 +317,21 @@ class TestPostgresSessionPersistence:
 
     @pytest.mark.asyncio
     async def test_session_handles_empty_conversation(
-        self, db_session: AsyncSession, test_customer: Customer
+        self, session: AsyncSession, test_customer: Customer
     ):
         """Test session handles conversation with no messages."""
         # Create empty conversation
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.API,
             ConversationStatus.ACTIVE,
         )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create PostgresSession
-        pg_session = PostgresSession(db_session, conversation.id, Channel.API)
+        pg_session = PostgresSession(session, conversation.id, Channel.API)
 
         # Get items from empty conversation
         items = await pg_session.get_items()
@@ -345,12 +345,12 @@ class TestPostgresSessionPersistence:
 
     @pytest.mark.asyncio
     async def test_session_maintains_message_order(
-        self, db_session: AsyncSession, test_customer: Customer
+        self, session: AsyncSession, test_customer: Customer
     ):
         """Test session maintains chronological message order."""
         # Create conversation
         conversation = await create_conversation(
-            db_session,
+            session,
             test_customer.id,
             Channel.API,
             ConversationStatus.ACTIVE,
@@ -369,7 +369,7 @@ class TestPostgresSessionPersistence:
             direction = MessageDirection.INBOUND if i % 2 == 0 else MessageDirection.OUTBOUND
 
             await create_message(
-                db_session,
+                session,
                 conversation.id,
                 role,
                 content,
@@ -377,10 +377,10 @@ class TestPostgresSessionPersistence:
                 Channel.API,
             )
 
-        await db_session.commit()
+        await session.commit()
 
         # Create PostgresSession and retrieve
-        pg_session = PostgresSession(db_session, conversation.id, Channel.API)
+        pg_session = PostgresSession(session, conversation.id, Channel.API)
         items = await pg_session.get_items()
 
         # Verify order is maintained

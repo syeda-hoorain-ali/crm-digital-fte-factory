@@ -208,3 +208,220 @@ Wait for consent; never auto-create ADRs. Group related decisions (stacks, authe
 
 ## Code Standards
 See `.specify/memory/constitution.md` for code quality, testing, performance, security, and architecture principles.
+
+---
+
+## Project-Specific: CRM Digital FTE Factory
+
+### Technology Stack
+
+**Backend:**
+- **Language**: Python 3.12+
+- **Framework**: FastAPI (async web framework)
+- **Database**: PostgreSQL (Neon Serverless)
+- **ORM**: SQLAlchemy + SQLModel (async)
+- **Migrations**: Alembic
+- **Package Manager**: UV
+- **Testing**: pytest, pytest-asyncio, pytest-cov
+- **AI Agent**: OpenAI Agents SDK (Swarm-based)
+- **Message Queue**: Apache Kafka (aiokafka)
+- **Cache/Rate Limiting**: Redis (redis.asyncio)
+- **Email**: Gmail API (google-cloud-pubsub)
+- **WhatsApp**: Twilio SDK
+- **Monitoring**: Prometheus, Grafana
+- **Logging**: Structured logging with correlation IDs
+
+**Frontend:**
+- **Framework**: React + TypeScript
+- **Build Tool**: Vite
+- **UI Library**: shadcn/ui + Tailwind CSS
+- **Forms**: react-hook-form + zod
+- **HTTP Client**: Axios
+
+**Infrastructure:**
+- **Containerization**: Docker
+- **Orchestration**: Kubernetes (optional)
+- **CI/CD**: GitHub Actions
+- **Secrets Management**: Environment variables (.env)
+
+### Project Structure
+
+```
+crm-digital-fte-factory/
+├── backend/
+│   ├── src/
+│   │   ├── agent/              # AI agent implementation
+│   │   ├── api/                # FastAPI endpoints
+│   │   ├── channels/           # Channel handlers (Gmail, WhatsApp, Web Form)
+│   │   ├── database/           # Models, queries, connection
+│   │   ├── kafka/              # Kafka producer, schemas, topics
+│   │   ├── services/           # Business logic services
+│   │   ├── utils/              # HMAC, rate limiter, retry logic
+│   │   └── main.py             # FastAPI application
+│   ├── tests/
+│   │   ├── unit/               # Unit tests
+│   │   ├── integration/        # Integration tests (real DB)
+│   │   └── e2e/                # End-to-end tests
+│   ├── alembic/                # Database migrations
+│   ├── scripts/                # Utility scripts
+│   ├── pyproject.toml          # Python dependencies
+│   └── pytest.ini              # Pytest configuration
+├── frontend/
+│   ├── src/
+│   │   ├── components/         # React components
+│   │   ├── pages/              # Page components
+│   │   ├── lib/                # Utilities and API clients
+│   │   └── main.tsx            # Entry point
+│   └── package.json            # Node dependencies
+├── specs/                      # Feature specifications
+│   └── 006-channel-integrations/
+├── docs/                       # Documentation
+│   ├── deployment.md           # Deployment guide
+│   ├── security-audit.md       # Security audit report
+│   └── performance-testing.md  # Performance testing guide
+├── history/                    # Prompt history records
+│   ├── prompts/
+│   └── adr/                    # Architecture decision records
+├── .claude/                    # Claude Code configuration
+│   ├── CLAUDE.md               # This file
+│   └── skills/                 # Custom skills
+└── docker-compose.yml          # Local development services
+```
+
+### Common Commands
+
+#### Backend Development
+
+```bash
+# Navigate to backend
+cd backend
+
+# Install dependencies
+uv sync
+
+# Run database migrations
+uv run alembic upgrade head
+
+# Start development server
+uv run uvicorn src.main:app --reload --port 8080
+
+# Run all tests
+uv run pytest
+
+# Run tests with coverage
+uv run pytest --cov=src --cov-report=html
+
+# Run specific test file
+uv run pytest tests/unit/test_hmac_validator.py
+
+# Run integration tests only
+uv run pytest tests/integration/
+
+# Run E2E tests only
+uv run pytest tests/e2e/
+
+# Create new migration
+uv run alembic revision --autogenerate -m "description"
+
+# Check current migration
+uv run alembic current
+
+# Rollback one migration
+uv run alembic downgrade -1
+```
+
+#### Frontend Development
+
+```bash
+# Navigate to frontend
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+
+# Add shadcn component
+npx shadcn@latest add button
+```
+
+#### Infrastructure
+
+```bash
+# Start local services (Kafka, Redis)
+docker-compose up -d
+
+# Stop services
+docker-compose down
+
+# View logs
+docker-compose logs -f
+
+# Check service status
+docker-compose ps
+
+# Connect to Redis
+docker exec -it redis redis-cli
+
+# Connect to Kafka
+docker exec -it kafka kafka-topics --list --bootstrap-server localhost:9092
+```
+
+### Environment Variables
+
+Required environment variables (see `backend/.env.example`):
+
+```bash
+# Database
+DATABASE_URL=postgresql://user:pass@host/db?sslmode=require
+
+# Redis
+REDIS_URL=redis://localhost:6379
+
+# Kafka
+KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+
+# Gmail API
+GMAIL_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GMAIL_CLIENT_SECRET=your-client-secret
+
+# Twilio
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=your-auth-token
+TWILIO_WHATSAPP_NUMBER=+14155238886
+
+# Security
+WEBHOOK_SECRET=your-webhook-secret-min-32-chars
+
+# Application
+ENVIRONMENT=development
+LOG_LEVEL=DEBUG
+```
+
+### Key Features
+
+1. **Multi-Channel Support**: Email (Gmail), WhatsApp (Twilio), Web Form
+2. **AI Agent**: OpenAI Agents SDK with custom tools for customer support
+3. **Customer Recognition**: Cross-channel customer identification
+4. **Rate Limiting**: Redis-based sliding window rate limiter
+5. **Security**: HMAC signature verification for all webhooks
+6. **Observability**: Prometheus metrics, structured logging
+7. **Async Architecture**: Fully async with FastAPI and SQLAlchemy
+8. **Message Queue**: Kafka for reliable message processing
+9. **Attachment Handling**: Secure file upload with validation
+10. **Session Persistence**: Conversation history across channels
+
+### Testing Strategy
+
+- **Unit Tests**: Test individual functions and classes in isolation
+- **Integration Tests**: Test with real PostgreSQL database (automatic cleanup)
+- **E2E Tests**: Test complete workflows with Kafka verification
+- **Coverage Target**: 80%+ code coverage
+- **Test Fixtures**: Automatic cleanup using try-finally pattern in async fixtures
