@@ -1,0 +1,70 @@
+# Python bytecode and cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+
+# Virtual environments
+.venv/
+venv/
+
+# Test and coverage artifacts
+test/
+tests/
+*.log
+
+# IDE/editor configs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build outputs and temp files
+dist/
+build/
+out/
+tmp/
+temp/
+*.tmp
+
+# Version control
+.git/
+.gitignore
+.svn/
+.hg/
+
+# Environment and secrets
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.crt
+
+# Local and machine-specific config
+.local/
+local/
+config.local.*
+*.local.yml
+
+# Documentation (keep README.md for package metadata)
+docs/
+
+# Docker and Compose files
+Dockerfile*
+docker-compose*
+
+# Alembic migration caches
+alembic/__pycache__/
+alembic/versions/__pycache__/
+
+# src caches
+src/**/__pycache__/
+
+# tests caches
+tests/**/__pycache__/
+
+# Logs directory
+logs/

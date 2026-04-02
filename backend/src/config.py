@@ -185,7 +185,7 @@ class Settings(BaseSettings):
         default="",
         description="Twilio auth token (required for WhatsApp)"
     )
-    twilio_whatsapp_from: str = Field(
+    twilio_app_number: str = Field(
         default="",
         description="Twilio WhatsApp sender number (format: whatsapp:+1234567890)"
     )

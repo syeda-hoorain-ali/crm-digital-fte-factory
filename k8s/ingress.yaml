@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: customer-success-fte
+  namespace: customer-success-fte
+  labels:
+    app: customer-success-fte
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - ${INGRESS_HOSTNAME}
+    secretName: fte-tls
+  rules:
+  - host: ${INGRESS_HOSTNAME}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: customer-success-fte
+            port:
+              number: 80
