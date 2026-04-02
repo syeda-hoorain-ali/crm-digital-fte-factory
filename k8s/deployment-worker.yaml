@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fte-message-processor
+  namespace: customer-success-fte
+  labels:
+    app: customer-success-fte
+    component: message-processor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: customer-success-fte
+      component: message-processor
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: customer-success-fte
+        component: message-processor
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        runAsNonRoot: true
+      containers:
+      - name: fte-worker
+        image: docker.io/library/customer-success-fte:test
+        imagePullPolicy: IfNotPresent
+        command:
+        - python
+        - -m
+        - src.workers.message_processor
+        envFrom:
+        - configMapRef:
+            name: fte-config
+        - secretRef:
+            name: fte-secrets
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: cache
+          mountPath: /app/.cache
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}

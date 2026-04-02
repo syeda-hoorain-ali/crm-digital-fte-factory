@@ -11,7 +11,7 @@ services:
       KAFKA_NODE_ID: 0
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
@@ -26,33 +26,219 @@ services:
     networks:
       - crm-network
     healthcheck:
-      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      test: ["CMD-SHELL", "nc -z localhost 9092 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
-  # # Redis for rate limiting
-  # redis:
-  #   image: redis:7-alpine
-  #   container_name: crm-redis
-  #   ports:
-  #     - "6379:6379"
-  #   command: redis-server --appendonly yes
-  #   volumes:
-  #     - redis_data:/data
-  #   networks:
-  #     - crm-network
-  #   healthcheck:
-  #     test: ["CMD", "redis-cli", "ping"]
-  #     interval: 5s
-  #     timeout: 3s
-  #     retries: 5
+  # Redis for rate limiting
+  redis:
+    image: redis:7-alpine
+    container_name: crm-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - crm-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Customer Success FTE API
+  fte-api:
+    image: customer-success-fte:test
+    container_name: crm-fte-api
+    ports:
+      - "8080:8000"
+    command: sh -c "sleep 30 && uvicorn src.main:app --host 0.0.0.0 --port 8000"
+    environment:
+      # Database
+      DATABASE_URL: "${DATABASE_URL}"
+
+      # Gemini API
+      GEMINI_API_KEY: "${GEMINI_API_KEY}"
+      GEMINI_BASE_URL: "${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai/}"
+
+      # Kafka
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+      KAFKA_TOPIC_PREFIX: "${KAFKA_TOPIC_PREFIX:-customer-intake}"
+
+      # Redis
+      REDIS_URL: "redis://redis:6379/0"
+
+      # Rate Limiting
+      RATE_LIMIT_PER_MINUTE: "${RATE_LIMIT_PER_MINUTE:-10}"
+
+      # Application Settings
+      ENVIRONMENT: "${ENVIRONMENT:-development}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+
+      # Embedding Configuration
+      EMBEDDING_MODEL: "${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}"
+      EMBEDDING_DIMENSION: "${EMBEDDING_DIMENSION:-384}"
+
+      # API Configuration
+      API_HOST: "${API_HOST:-0.0.0.0}"
+      API_PORT: "${API_PORT:-8000}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}"
+
+      # Agent Configuration
+      AGENT_MODEL: "${AGENT_MODEL:-gemini-2.5-flash}"
+      AGENT_MAX_TOKENS: "${AGENT_MAX_TOKENS:-4096}"
+      AGENT_TEMPERATURE: "${AGENT_TEMPERATURE:-0.7}"
+      AGENT_COST_PER_MILLION_TOKENS: "${AGENT_COST_PER_MILLION_TOKENS:-6.25}"
+
+      # Escalation Configuration
+      ESCALATION_EMAIL_LOW: "${ESCALATION_EMAIL_LOW:-support-tier1@cloudstream.com}"
+      ESCALATION_EMAIL_MEDIUM: "${ESCALATION_EMAIL_MEDIUM:-support-tier2@cloudstream.com}"
+      ESCALATION_EMAIL_HIGH: "${ESCALATION_EMAIL_HIGH:-support-senior@cloudstream.com}"
+      ESCALATION_EMAIL_CRITICAL: "${ESCALATION_EMAIL_CRITICAL:-support-vip@cloudstream.com}"
+
+      # Email Notification Configuration
+      SMTP_HOST: "${SMTP_HOST:-smtp.gmail.com}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USERNAME: "${SMTP_USERNAME:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      SMTP_FROM_EMAIL: "${SMTP_FROM_EMAIL:-support@cloudstream.com}"
+      SMTP_USE_TLS: "${SMTP_USE_TLS:-true}"
+      ENABLE_EMAIL_NOTIFICATIONS: "${ENABLE_EMAIL_NOTIFICATIONS:-false}"
+
+      # Database Connection Pool
+      DB_POOL_SIZE: "${DB_POOL_SIZE:-10}"
+      DB_MAX_OVERFLOW: "${DB_MAX_OVERFLOW:-20}"
+      DB_POOL_TIMEOUT: "${DB_POOL_TIMEOUT:-30}"
+
+      # Knowledge Base Configuration
+      KB_SEARCH_LIMIT: "${KB_SEARCH_LIMIT:-5}"
+      KB_MIN_SIMILARITY: "${KB_MIN_SIMILARITY:-0.7}"
+
+      # Twilio Configuration
+      TWILIO_ACCOUNT_SID: "${TWILIO_ACCOUNT_SID:-}"
+      TWILIO_AUTH_TOKEN: "${TWILIO_AUTH_TOKEN:-}"
+      TWILIO_APP_NUMBER: "${TWILIO_APP_NUMBER:-}"
+      TWILIO_WEBHOOK_SECRET: "${TWILIO_WEBHOOK_SECRET:-}"
+
+      # Gmail Configuration
+      GMAIL_SERVICE_ACCOUNT_PATH: "${GMAIL_SERVICE_ACCOUNT_PATH:-}"
+      GMAIL_SUPPORT_CREDENTIALS_PATH: "${GMAIL_SUPPORT_CREDENTIALS_PATH:-}"
+      GMAIL_SUPPORT_ADDRESS: "${GMAIL_SUPPORT_ADDRESS:-}"
+      GMAIL_PUBSUB_TOPIC: "${GMAIL_PUBSUB_TOPIC:-}"
+      GMAIL_WEBHOOK_SECRET: "${GMAIL_WEBHOOK_SECRET:-}"
+      GCP_PROJECT_ID: "${GCP_PROJECT_ID:-}"
+
+      # Observability Configuration
+      ENABLE_DEBUG_LOGGING: "${ENABLE_DEBUG_LOGGING:-false}"
+      ENABLE_METRICS: "${ENABLE_METRICS:-true}"
+      ENABLE_TRACING: "${ENABLE_TRACING:-false}"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - crm-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # Customer Success FTE Message Processor (Worker)
+  fte-worker:
+    image: customer-success-fte:test
+    container_name: crm-fte-worker
+    command: sh -c "sleep 30 && python -m src.workers.message_processor"
+    environment:
+      # Database
+      DATABASE_URL: "${DATABASE_URL}"
+
+      # Gemini API
+      GEMINI_API_KEY: "${GEMINI_API_KEY}"
+      GEMINI_BASE_URL: "${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai/}"
+
+      # Kafka
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+      KAFKA_TOPIC_PREFIX: "${KAFKA_TOPIC_PREFIX:-customer-intake}"
+
+      # Redis
+      REDIS_URL: "redis://redis:6379/0"
+
+      # Application Settings
+      ENVIRONMENT: "${ENVIRONMENT:-development}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+
+      # Embedding Configuration
+      EMBEDDING_MODEL: "${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}"
+      EMBEDDING_DIMENSION: "${EMBEDDING_DIMENSION:-384}"
+
+      # Agent Configuration
+      AGENT_MODEL: "${AGENT_MODEL:-gemini-2.5-flash}"
+      AGENT_MAX_TOKENS: "${AGENT_MAX_TOKENS:-4096}"
+      AGENT_TEMPERATURE: "${AGENT_TEMPERATURE:-0.7}"
+      AGENT_COST_PER_MILLION_TOKENS: "${AGENT_COST_PER_MILLION_TOKENS:-6.25}"
+
+      # Escalation Configuration
+      ESCALATION_EMAIL_LOW: "${ESCALATION_EMAIL_LOW:-support-tier1@cloudstream.com}"
+      ESCALATION_EMAIL_MEDIUM: "${ESCALATION_EMAIL_MEDIUM:-support-tier2@cloudstream.com}"
+      ESCALATION_EMAIL_HIGH: "${ESCALATION_EMAIL_HIGH:-support-senior@cloudstream.com}"
+      ESCALATION_EMAIL_CRITICAL: "${ESCALATION_EMAIL_CRITICAL:-support-vip@cloudstream.com}"
+
+      # Email Notification Configuration
+      SMTP_HOST: "${SMTP_HOST:-smtp.gmail.com}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USERNAME: "${SMTP_USERNAME:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      SMTP_FROM_EMAIL: "${SMTP_FROM_EMAIL:-support@cloudstream.com}"
+      SMTP_USE_TLS: "${SMTP_USE_TLS:-true}"
+      ENABLE_EMAIL_NOTIFICATIONS: "${ENABLE_EMAIL_NOTIFICATIONS:-false}"
+
+      # Database Connection Pool
+      DB_POOL_SIZE: "${DB_POOL_SIZE:-10}"
+      DB_MAX_OVERFLOW: "${DB_MAX_OVERFLOW:-20}"
+      DB_POOL_TIMEOUT: "${DB_POOL_TIMEOUT:-30}"
+
+      # Knowledge Base Configuration
+      KB_SEARCH_LIMIT: "${KB_SEARCH_LIMIT:-5}"
+      KB_MIN_SIMILARITY: "${KB_MIN_SIMILARITY:-0.7}"
+
+      # Twilio Configuration
+      TWILIO_ACCOUNT_SID: "${TWILIO_ACCOUNT_SID:-}"
+      TWILIO_AUTH_TOKEN: "${TWILIO_AUTH_TOKEN:-}"
+      TWILIO_APP_NUMBER: "${TWILIO_APP_NUMBER:-}"
+      TWILIO_WEBHOOK_SECRET: "${TWILIO_WEBHOOK_SECRET:-}"
+
+      # Gmail Configuration
+      GMAIL_SERVICE_ACCOUNT_PATH: "${GMAIL_SERVICE_ACCOUNT_PATH:-}"
+      GMAIL_SUPPORT_CREDENTIALS_PATH: "${GMAIL_SUPPORT_CREDENTIALS_PATH:-}"
+      GMAIL_SUPPORT_ADDRESS: "${GMAIL_SUPPORT_ADDRESS:-}"
+      GMAIL_PUBSUB_TOPIC: "${GMAIL_PUBSUB_TOPIC:-}"
+      GMAIL_WEBHOOK_SECRET: "${GMAIL_WEBHOOK_SECRET:-}"
+      GCP_PROJECT_ID: "${GCP_PROJECT_ID:-}"
+
+      # Observability Configuration
+      ENABLE_DEBUG_LOGGING: "${ENABLE_DEBUG_LOGGING:-false}"
+      ENABLE_METRICS: "${ENABLE_METRICS:-true}"
+      ENABLE_TRACING: "${ENABLE_TRACING:-false}"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - crm-network
+    restart: unless-stopped
 
 volumes:
   kafka_data:
-    # driver: local
-  # redis_data:
-  #   driver: local
+    driver: local
+  redis_data:
+    driver: local
 
 networks:
   crm-network:

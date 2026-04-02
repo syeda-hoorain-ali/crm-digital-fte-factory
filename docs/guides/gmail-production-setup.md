@@ -93,38 +93,38 @@ gcloud services enable secretmanager.googleapis.com
 ### Authentication Flow
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Google Cloud Secret Manager                                │
-│  ┌────────────────────────────────────────────────────┐    │
-│  │  gmail-service-account-key (JSON)                  │    │
-│  │  {                                                  │    │
-│  │    "type": "service_account",                      │    │
-│  │    "project_id": "...",                            │    │
-│  │    "private_key_id": "...",                        │    │
-│  │    "private_key": "...",                           │    │
-│  │    "client_email": "...",                          │    │
-│  │    "client_id": "..."                              │    │
-│  │  }                                                  │    │
-│  └────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│  Google Cloud Secret Manager                             │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │  gmail-service-account-key (JSON)                  │  │
+│  │  {                                                 │  │
+│  │    "type": "service_account",                      │  │
+│  │    "project_id": "...",                            │  │
+│  │    "private_key_id": "...",                        │  │
+│  │    "private_key": "...",                           │  │
+│  │    "client_email": "...",                          │  │
+│  │    "client_id": "..."                              │  │
+│  │  }                                                 │  │
+│  └────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────┘
                             ↓
-┌─────────────────────────────────────────────────────────────┐
-│  Your Application (FastAPI)                                 │
-│  ┌────────────────────────────────────────────────────┐    │
-│  │  1. Fetch service account key on startup           │    │
-│  │  2. Create credentials with domain-wide delegation │    │
-│  │  3. Impersonate support@yourdomain.com             │    │
-│  │  4. Access Gmail API as that user                  │    │
-│  └────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│  Your Application (FastAPI)                              │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │  1. Fetch service account key on startup           │  │
+│  │  2. Create credentials with domain-wide delegation │  │
+│  │  3. Impersonate support@yourdomain.com             │  │
+│  │  4. Access Gmail API as that user                  │  │
+│  └────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────┘
                             ↓
-┌─────────────────────────────────────────────────────────────┐
-│  Gmail API (as support@yourdomain.com)                      │
-│  - Read emails                                              │
-│  - Send responses                                           │
-│  - Manage labels                                            │
-│  - Register Pub/Sub watch                                   │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│  Gmail API (as support@yourdomain.com)                   │
+│  - Read emails                                           │
+│  - Send responses                                        │
+│  - Manage labels                                         │
+│  - Register Pub/Sub watch                                │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ---

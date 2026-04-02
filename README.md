@@ -30,6 +30,40 @@ This implementation uses a **file-based MCP (Model Context Protocol) server** ar
 - **Claude Code Integration**: Works seamlessly via stdio transport
 - **Skills-Based Agent**: 5 specialized skills for customer support workflows
 
+### Production Deployment
+
+The system is ready for production deployment to Kubernetes with:
+- ✅ Docker image built and tested (`customer-success-fte:test`)
+- ✅ 10 Kubernetes manifests (namespace, configmap, secrets, 2 deployments, service, ingress, 2 HPAs)
+- ✅ Automated deployment scripts (`scripts/deploy-k8s.sh`, `scripts/cleanup-k8s.sh`)
+- ✅ Comprehensive documentation
+
+**Quick Deploy:**
+```bash
+# 1. Set environment variables
+export GEMINI_API_KEY="your-key"
+export POSTGRES_PASSWORD="your-password"
+export TWILIO_ACCOUNT_SID="your-sid"
+export TWILIO_AUTH_TOKEN="your-token"
+export TWILIO_WHATSAPP_NUMBER="+1234567890"
+export WEBHOOK_SECRET="your-secret-min-32-chars"
+export INGRESS_HOSTNAME="api.yourdomain.com"
+export CONTAINER_REGISTRY="your-registry"
+export IMAGE_TAG="v1.0.0"
+
+# 2. Push Docker image to registry
+docker tag customer-success-fte:test $CONTAINER_REGISTRY/customer-success-fte:$IMAGE_TAG
+docker push $CONTAINER_REGISTRY/customer-success-fte:$IMAGE_TAG
+
+# 3. Deploy to Kubernetes
+./scripts/deploy-k8s.sh
+```
+
+**Documentation:**
+- **[Kubernetes Deployment Quickstart](specs/007-k8s-deployment/quickstart.md)** - Step-by-step deployment guide
+- **[Docker Build Guide](docs/docker-build.md)** - Docker image preparation
+- **[Deployment Operations](docs/deployment.md)** - Production operations and security
+
 ### MCP Server
 
 The MCP server provides tools for:

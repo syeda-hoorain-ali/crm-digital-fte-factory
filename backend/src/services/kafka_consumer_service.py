@@ -102,6 +102,10 @@ class KafkaConsumerService:
         """Main consume loop that processes messages."""
         logger.info("Starting Kafka consume loop...")
 
+        if not self.consumer:
+            logger.warning("Kafka consumer service not running")
+            return
+
         try:
             async for message in self.consumer:
                 try:
