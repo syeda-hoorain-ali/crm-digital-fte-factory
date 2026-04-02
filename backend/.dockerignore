@@ -59,7 +59,6 @@ docker-compose*
 # Alembic migration caches
 alembic/__pycache__/
 alembic/versions/__pycache__/
-alembic.ini
 
 # src caches
 src/**/__pycache__/

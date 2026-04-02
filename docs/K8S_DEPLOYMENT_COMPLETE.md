@@ -182,7 +182,7 @@ Before deploying, ensure you have:
 - **[Quickstart Guide](specs/007-k8s-deployment/quickstart.md)** - Complete step-by-step deployment
 - **[Docker Build](docs/docker-build.md)** - Docker image preparation
 - **[Operations Guide](docs/deployment.md)** - Production operations and security
-- **[Architecture](.claude/CLAUDE.md)** - Project structure and tech stack
+- **[Architecture](docs/ARCHITECTURE.md)** - Project structure and tech stack
 
 ---
 

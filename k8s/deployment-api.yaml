@@ -30,7 +30,7 @@ spec:
         runAsNonRoot: true
       containers:
       - name: fte-api
-        image: docker.io/library/customer-success-fte:test
+        image: ${CONTAINER_REGISTRY}/customer-success-fte:${IMAGE_TAG}
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8000

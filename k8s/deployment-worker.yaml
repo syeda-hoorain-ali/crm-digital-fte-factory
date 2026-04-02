@@ -30,7 +30,7 @@ spec:
         runAsNonRoot: true
       containers:
       - name: fte-worker
-        image: docker.io/library/customer-success-fte:test
+        image: ${CONTAINER_REGISTRY}/customer-success-fte:${IMAGE_TAG}
         imagePullPolicy: IfNotPresent
         command:
         - python

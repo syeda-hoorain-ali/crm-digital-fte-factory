@@ -202,51 +202,8 @@ These are in ConfigMap but not in .env.example:
 
 **Status:** These appear to be unused by the application code.
 
-## Recommendations
+---
 
-### Immediate Fixes (Breaking Issues)
+## Summary
 
-1. **Fix Twilio variable name:**
-   ```yaml
-   # k8s/secrets.yaml
-   - TWILIO_WHATSAPP_NUMBER: "${TWILIO_WHATSAPP_NUMBER}"
-   + TWILIO_WHATSAPP_FROM: "${TWILIO_WHATSAPP_FROM}"
-   ```
-
-2. **Fix Gmail credentials variable name:**
-   ```yaml
-   # k8s/secrets.yaml
-   - GMAIL_CREDENTIALS: "${GMAIL_CREDENTIALS_JSON}"
-   + GMAIL_SERVICE_ACCOUNT_PATH: "${GMAIL_CREDENTIALS_JSON}"
-   ```
-
-### Optional Additions (For Production)
-
-Add to ConfigMap if needed for Gmail functionality:
-```yaml
-GMAIL_SUPPORT_ADDRESS: "support@example.com"
-GMAIL_WEBHOOK_SECRET: "${GMAIL_WEBHOOK_SECRET}"
-GCP_PROJECT_ID: "${GCP_PROJECT_ID}"
-```
-
-Add to ConfigMap if needed for Gmail push notifications:
-```yaml
-GMAIL_PUBSUB_TOPIC: "projects/${GCP_PROJECT_ID}/topics/gmail-notifications"
-```
-
-### Cleanup
-
-Remove unused variables from ConfigMap:
-- `GMAIL_ENABLED`, `WHATSAPP_ENABLED`, `WEBFORM_ENABLED`
-- `MAX_EMAIL_LENGTH`, `MAX_WHATSAPP_LENGTH`, `MAX_WEBFORM_LENGTH`
-- `AGENT_MAX_ITERATIONS`, `AGENT_TIMEOUT_SECONDS`
-
-## Testing Checklist
-
-After fixes:
-- [ ] Deploy to K8s cluster
-- [ ] Check API pod logs for startup errors
-- [ ] Check worker pod logs for startup errors
-- [ ] Verify Twilio WhatsApp handler initializes correctly
-- [ ] Verify Gmail handler initializes correctly (if credentials provided)
-- [ ] Test health endpoint: `curl http://localhost:8000/health`
+The Kubernetes ConfigMap and Secrets are properly configured for the current application implementation. All critical environment variables are present and correctly named. The application should start successfully with the provided configuration.

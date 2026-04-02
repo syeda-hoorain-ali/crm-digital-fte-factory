@@ -55,7 +55,7 @@ services:
     container_name: crm-fte-api
     ports:
       - "8080:8000"
-    command: sh -c "sleep 30 && uvicorn src.main:app --host 0.0.0.0 --port 8000"
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000
     environment:
       # Database
       DATABASE_URL: "${DATABASE_URL}"
@@ -153,7 +153,7 @@ services:
   fte-worker:
     image: customer-success-fte:test
     container_name: crm-fte-worker
-    command: sh -c "sleep 30 && python -m src.workers.message_processor"
+    command: python -m src.workers.message_processor
     environment:
       # Database
       DATABASE_URL: "${DATABASE_URL}"
