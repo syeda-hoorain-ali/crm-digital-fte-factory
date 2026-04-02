@@ -1,19 +1,24 @@
-import { SupportFormValues, SupportFormResponse } from "@/features/support-form/schema"
+import type { SupportFormValues, SupportFormResponse } from "@/features/support-form/schema"
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
 
 export class SupportApiError extends Error {
+  public status: number
+  public details?: unknown
+
   constructor(
     message: string,
-    public status: number,
-    public details?: unknown
+    status: number,
+    details?: unknown
   ) {
     super(message)
+    this.status = status
+    this.details = details
     this.name = "SupportApiError"
   }
 }
 
-export async function submitSupportRequest(
+export async function supportRequestQuery(
   data: SupportFormValues
 ): Promise<SupportFormResponse> {
   try {
@@ -46,7 +51,7 @@ export async function submitSupportRequest(
   }
 }
 
-export async function getTicketStatus(ticketId: string): Promise<{
+export async function getTicketStatusQuery(ticketId: string): Promise<{
   ticket_id: string
   status: string
   created_at: string
