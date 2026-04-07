@@ -13,6 +13,10 @@ env:
   PYTHON_VERSION: '3.12'
   NEON_API_URL: 'https://console.neon.tech/api/v2'
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   test-with-neon-branch:
     name: Create Neon Branch and Run Tests
@@ -297,18 +301,18 @@ jobs:
           AGENT_MODEL=gemini-2.5-flash
           EOF
 
-      - name: Start services with docker-compose
+      - name: Start services with docker compose
         run: |
           echo "🚀 Starting Kafka, Redis, API, and Worker..."
-          docker-compose up -d
+          docker compose up -d
           echo "⏳ Waiting for services to be healthy..."
           sleep 60
-          docker-compose ps
+          docker compose ps
 
       - name: Verify services are running
         run: |
           echo "🔍 Checking service health..."
-          docker-compose ps
+          docker compose ps
           echo ""
           echo "📋 Kafka logs:"
           docker logs crm-kafka --tail 30
@@ -402,9 +406,9 @@ jobs:
       - name: Stop test services
         if: always()
         run: |
-          echo "🛑 Stopping docker-compose services..."
-          docker-compose down -v || true
-          docker-compose ps
+          echo "🛑 Stopping docker compose services..."
+          docker compose down -v || true
+          docker compose ps || true
 
       - name: Branch info
         if: always()
