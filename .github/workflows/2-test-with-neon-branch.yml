@@ -1,15 +1,12 @@
 name: 2. Test with Neon Branch
 
 on:
-  push:
+  workflow_run:
+    workflows: ["1. Build and Push Docker Image"]
+    types:
+      - completed
     branches:
       - main
-  # workflow_run:
-  #   workflows: ["1. Build and Push Docker Image"]
-  #   types:
-  #     - completed
-  #   branches:
-  #     - main
   workflow_dispatch:
 
 env:
@@ -20,7 +17,7 @@ jobs:
   test-with-neon-branch:
     name: Create Neon Branch and Run Tests
     runs-on: ubuntu-latest
-    # if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
 
     steps:
       - name: Checkout code
@@ -39,7 +36,11 @@ jobs:
       - name: Install dependencies
         working-directory: ./backend
         run: |
+          echo "📦 Installing dependencies with UV..."
           uv sync --frozen
+
+          echo "✅ Dependencies installed. Verifying..."
+          uv run python -c "import asyncpg; import sqlalchemy; print(f'asyncpg: {asyncpg.__version__}, sqlalchemy: {sqlalchemy.__version__}')"
 
       - name: Create Neon branch
         id: create-branch
@@ -115,22 +116,47 @@ jobs:
       - name: Get branch connection string
         id: connection
         run: |
-          # Get connection details
+          # First, get the role name from the branch
+          echo "🔍 Fetching role name from branch..."
+          ROLES_RESPONSE=$(curl -s -X GET \
+            "${{ env.NEON_API_URL }}/projects/${{ secrets.NEON_PROJECT_ID }}/branches/${{ env.BRANCH_ID }}/roles" \
+            -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}")
+
+          ROLE_NAME=$(echo "$ROLES_RESPONSE" | jq -r '.roles[0].name')
+
+          if [ "$ROLE_NAME" == "null" ] || [ -z "$ROLE_NAME" ]; then
+            echo "❌ Failed to get role name"
+            echo "$ROLES_RESPONSE" | jq '.'
+            exit 1
+          fi
+
+          echo "✅ Found role: $ROLE_NAME"
+
+          # Use default database name (neondb is the default for Neon)
+          DATABASE_NAME="neondb"
+
+          # Get connection details with all required parameters
+          echo "🔗 Fetching connection string..."
           RESPONSE=$(curl -s -X GET \
-            "${{ env.NEON_API_URL }}/projects/${{ secrets.NEON_PROJECT_ID }}/connection_uri?branch_id=${{ env.BRANCH_ID }}" \
+            "${{ env.NEON_API_URL }}/projects/${{ secrets.NEON_PROJECT_ID }}/connection_uri?branch_id=${{ env.BRANCH_ID }}&database_name=$DATABASE_NAME&role_name=$ROLE_NAME" \
             -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}")
 
           CONNECTION_URI=$(echo "$RESPONSE" | jq -r '.uri')
 
           if [ "$CONNECTION_URI" == "null" ] || [ -z "$CONNECTION_URI" ]; then
             echo "❌ Failed to get connection URI"
+            echo "$RESPONSE" | jq '.'
             exit 1
           fi
 
+          # Convert to asyncpg URL (replace postgresql:// with postgresql+asyncpg://)
+          ASYNC_CONNECTION_URI="${CONNECTION_URI/postgresql:\/\//postgresql+asyncpg:\/\/}"
+
           # Mask the connection string in logs
           echo "::add-mask::$CONNECTION_URI"
-          echo "TEST_DATABASE_URL=$CONNECTION_URI" >> $GITHUB_ENV
-          echo "✅ Retrieved connection string for branch"
+          echo "::add-mask::$ASYNC_CONNECTION_URI"
+          echo "TEST_DATABASE_URL=$ASYNC_CONNECTION_URI" >> $GITHUB_ENV
+          echo "✅ Retrieved connection string for branch (converted to asyncpg)"
 
       - name: Verify branch connection
         working-directory: ./backend
