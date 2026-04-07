@@ -159,6 +159,7 @@ jobs:
           parsed = urlparse(url)
           params = parse_qs(parsed.query, keep_blank_values=True)
           params.pop('channel_binding', None)  # remove if present
+          params.pop('sslmode', None)  # remove if present
           clean = parsed._replace(query=urlencode(params, doseq=True))
           print(urlunparse(clean))
           ")
