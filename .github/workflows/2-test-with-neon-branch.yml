@@ -1,12 +1,15 @@
 name: 2. Test with Neon Branch
 
 on:
-  workflow_run:
-    workflows: ["1. Build and Push Docker Image"]
-    types:
-      - completed
+  push:
     branches:
       - main
+  # workflow_run:
+  #   workflows: ["1. Build and Push Docker Image"]
+  #   types:
+  #     - completed
+  #   branches:
+  #     - main
   workflow_dispatch:
 
 env:
@@ -91,7 +94,7 @@ jobs:
             STATUS=$(curl -s -X GET \
               "${{ env.NEON_API_URL }}/projects/${{ secrets.NEON_PROJECT_ID }}/branches/${{ env.BRANCH_ID }}" \
               -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}" \
-              | jq -r '.branch.state')
+              | jq -r '.branch.current_state')
 
             echo "Attempt $((ATTEMPT+1))/$MAX_ATTEMPTS - Branch status: $STATUS"
 
