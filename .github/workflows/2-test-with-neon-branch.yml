@@ -33,6 +33,35 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
+      - name: Download deployment artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Load deployment info
+        id: deployment
+        run: |
+          cat deployment.env
+          source deployment.env
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "COMMIT_SHA=$COMMIT_SHA" >> $GITHUB_ENV
+          echo "📦 Will test image: $IMAGE_TAG"
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Pull and tag Docker image
+        run: |
+          echo "🐳 Pulling image: ${{ env.IMAGE_TAG }}"
+          docker pull ${{ env.IMAGE_TAG }}
+          docker tag ${{ env.IMAGE_TAG }} customer-success-fte:test
+          echo "✅ Image ready for testing"
+
       - name: Install dependencies
         working-directory: ./backend
         run: |
@@ -258,30 +287,47 @@ jobs:
           WEBHOOK_SECRET=test-webhook-secret-for-ci-testing-only
           EOF
 
-      - name: Start Redis for tests
+      - name: Create .env file for docker-compose
         run: |
-          docker run -d -p 6379:6379 --name redis redis:7-alpine
-          sleep 5
+          cat > .env << EOF
+          DATABASE_URL=${{ env.TEST_DATABASE_URL }}
+          GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+          ENVIRONMENT=test
+          LOG_LEVEL=INFO
+          AGENT_MODEL=gemini-2.5-flash
+          EOF
 
-      - name: Start Kafka for tests
+      - name: Start services with docker-compose
         run: |
-          docker run -d -p 9092:9092 --name kafka \
-            -e KAFKA_ENABLE_KRAFT=yes \
-            -e KAFKA_CFG_PROCESS_ROLES=broker,controller \
-            -e KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER \
-            -e KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093 \
-            -e KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT \
-            -e KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
-            -e KAFKA_BROKER_ID=1 \
-            -e KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@localhost:9093 \
-            -e ALLOW_PLAINTEXT_LISTENER=yes \
-            bitnami/kafka:latest
-          sleep 15
+          echo "🚀 Starting Kafka, Redis, API, and Worker..."
+          docker-compose up -d
+          echo "⏳ Waiting for services to be healthy..."
+          sleep 60
+          docker-compose ps
+
+      - name: Verify services are running
+        run: |
+          echo "🔍 Checking service health..."
+          docker-compose ps
+          echo ""
+          echo "📋 Kafka logs:"
+          docker logs crm-kafka --tail 30
+          echo ""
+          echo "📋 Redis logs:"
+          docker logs crm-redis --tail 30
+          echo ""
+          echo "📋 API logs:"
+          docker logs crm-fte-api --tail 30
+          echo ""
+          echo "📋 Worker logs:"
+          docker logs crm-fte-worker --tail 30
 
       - name: Run unit tests
         working-directory: ./backend
         env:
           DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+          REDIS_URL: redis://localhost:6379/0
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
         run: |
           echo "🧪 Running unit tests..."
           uv run pytest tests/unit/ -v --tb=short --maxfail=5
@@ -290,6 +336,8 @@ jobs:
         working-directory: ./backend
         env:
           DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+          REDIS_URL: redis://localhost:6379/0
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
         run: |
           echo "🧪 Running integration tests..."
           uv run pytest tests/integration/ -v --tb=short --maxfail=5
@@ -298,6 +346,9 @@ jobs:
         working-directory: ./backend
         env:
           DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+          REDIS_URL: redis://localhost:6379/0
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           echo "🧪 Running E2E tests..."
           uv run pytest tests/e2e/ -v --tb=short --maxfail=5
@@ -306,6 +357,9 @@ jobs:
         working-directory: ./backend
         env:
           DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+          REDIS_URL: redis://localhost:6379/0
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           echo "🧪 Running full test suite with coverage..."
           uv run pytest \
@@ -348,8 +402,9 @@ jobs:
       - name: Stop test services
         if: always()
         run: |
-          docker stop redis kafka || true
-          docker rm redis kafka || true
+          echo "🛑 Stopping docker-compose services..."
+          docker-compose down -v || true
+          docker-compose ps
 
       - name: Branch info
         if: always()
