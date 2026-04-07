@@ -152,9 +152,16 @@ jobs:
           # Convert to asyncpg URL and remove unsupported parameters
           ASYNC_CONNECTION_URI="${CONNECTION_URI/postgresql:\/\//postgresql+asyncpg:\/\/}"
 
-          # Remove channel_binding parameter (not supported by asyncpg)
-          ASYNC_CONNECTION_URI="${ASYNC_CONNECTION_URI//\?channel_binding=prefer/}"
-          ASYNC_CONNECTION_URI="${ASYNC_CONNECTION_URI//&channel_binding=prefer/}"
+          # Strip unsupported params robustly with Python
+          ASYNC_CONNECTION_URI=$(python3 -c "
+          from urllib.parse import urlparse, urlencode, parse_qs, urlunparse
+          url = '${ASYNC_CONNECTION_URI}'
+          parsed = urlparse(url)
+          params = parse_qs(parsed.query, keep_blank_values=True)
+          params.pop('channel_binding', None)  # remove if present
+          clean = parsed._replace(query=urlencode(params, doseq=True))
+          print(urlunparse(clean))
+          ")
 
           # Mask the connection string in logs
           echo "::add-mask::$CONNECTION_URI"
@@ -170,12 +177,13 @@ jobs:
           uv run python -c "
           import asyncio
           from sqlalchemy.ext.asyncio import create_async_engine
+          from sqlalchemy import text
           import os
 
           async def check_connection():
               engine = create_async_engine(os.getenv('DATABASE_URL'))
               async with engine.connect() as conn:
-                  result = await conn.execute('SELECT version()')
+                  result = await conn.execute(text('SELECT version()'))
                   version = result.scalar()
                   print(f'✅ Connected to Neon branch: {version}')
               await engine.dispose()
