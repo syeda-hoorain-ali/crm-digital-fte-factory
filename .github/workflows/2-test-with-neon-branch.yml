@@ -149,14 +149,18 @@ jobs:
             exit 1
           fi
 
-          # Convert to asyncpg URL (replace postgresql:// with postgresql+asyncpg://)
+          # Convert to asyncpg URL and remove unsupported parameters
           ASYNC_CONNECTION_URI="${CONNECTION_URI/postgresql:\/\//postgresql+asyncpg:\/\/}"
+
+          # Remove channel_binding parameter (not supported by asyncpg)
+          ASYNC_CONNECTION_URI="${ASYNC_CONNECTION_URI//\?channel_binding=prefer/}"
+          ASYNC_CONNECTION_URI="${ASYNC_CONNECTION_URI//&channel_binding=prefer/}"
 
           # Mask the connection string in logs
           echo "::add-mask::$CONNECTION_URI"
           echo "::add-mask::$ASYNC_CONNECTION_URI"
           echo "TEST_DATABASE_URL=$ASYNC_CONNECTION_URI" >> $GITHUB_ENV
-          echo "✅ Retrieved connection string for branch (converted to asyncpg)"
+          echo "✅ Retrieved connection string for branch (converted to asyncpg, removed unsupported params)"
 
       - name: Verify branch connection
         working-directory: ./backend

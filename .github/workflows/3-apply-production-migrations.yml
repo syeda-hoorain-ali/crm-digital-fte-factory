@@ -35,7 +35,29 @@ jobs:
       - name: Install dependencies
         working-directory: ./backend
         run: |
+          echo "📦 Installing dependencies with UV..."
           uv sync --frozen
+
+          echo "✅ Dependencies installed. Verifying..."
+          uv run python -c "import asyncpg; import sqlalchemy; print(f'asyncpg: {asyncpg.__version__}, sqlalchemy: {sqlalchemy.__version__}')"
+
+      - name: Prepare database URL
+        run: |
+          # Ensure DATABASE_URL uses asyncpg driver
+          DB_URL="${{ secrets.PRODUCTION_DATABASE_URL }}"
+
+          # Convert postgresql:// to postgresql+asyncpg:// if needed
+          if [[ "$DB_URL" == postgresql://* ]] && [[ "$DB_URL" != postgresql+asyncpg://* ]]; then
+            DB_URL="${DB_URL/postgresql:\/\//postgresql+asyncpg:\/\/}"
+            echo "✅ Converted to asyncpg format"
+          fi
+
+          # Remove channel_binding parameter (not supported by asyncpg)
+          DB_URL="${DB_URL//\?channel_binding=prefer/}"
+          DB_URL="${DB_URL//&channel_binding=prefer/}"
+
+          echo "::add-mask::$DB_URL"
+          echo "DATABASE_URL=$DB_URL" >> $GITHUB_ENV
 
       - name: Verify database connection
         working-directory: ./backend
