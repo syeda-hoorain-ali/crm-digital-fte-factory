@@ -1,0 +1,319 @@
+name: 2. Test with Neon Branch
+
+on:
+  workflow_run:
+    workflows: ["1. Build and Push Docker Image"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.12'
+  NEON_API_URL: 'https://console.neon.tech/api/v2'
+
+jobs:
+  test-with-neon-branch:
+    name: Create Neon Branch and Run Tests
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install UV
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          uv sync --frozen
+
+      - name: Create Neon branch
+        id: create-branch
+        run: |
+          BRANCH_NAME="ci-test-$(date +%Y%m%d-%H%M%S)-${{ github.sha }}"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+
+          # Create branch with 15-day TTL
+          RESPONSE=$(curl -s -X POST \
+            "${{ env.NEON_API_URL }}/projects/${{ secrets.NEON_PROJECT_ID }}/branches" \
+            -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"branch\": {
+                \"name\": \"$BRANCH_NAME\",
+                \"parent_id\": \"${{ secrets.NEON_MAIN_BRANCH_ID }}\",
+                \"ttl\": 1296000
+              },
+              \"endpoints\": [{
+                \"type\": \"read_write\"
+              }]
+            }")
+
+          echo "Neon API Response:"
+          echo "$RESPONSE" | jq '.'
+
+          # Extract branch ID and connection details
+          BRANCH_ID=$(echo "$RESPONSE" | jq -r '.branch.id')
+          ENDPOINT_ID=$(echo "$RESPONSE" | jq -r '.endpoints[0].id')
+          ENDPOINT_HOST=$(echo "$RESPONSE" | jq -r '.endpoints[0].host')
+
+          if [ "$BRANCH_ID" == "null" ] || [ -z "$BRANCH_ID" ]; then
+            echo "❌ Failed to create Neon branch"
+            echo "$RESPONSE" | jq '.'
+            exit 1
+          fi
+
+          echo "BRANCH_ID=$BRANCH_ID" >> $GITHUB_ENV
+          echo "ENDPOINT_ID=$ENDPOINT_ID" >> $GITHUB_ENV
+          echo "ENDPOINT_HOST=$ENDPOINT_HOST" >> $GITHUB_ENV
+
+          echo "✅ Created Neon branch: $BRANCH_NAME (ID: $BRANCH_ID)"
+          echo "📌 Branch will auto-delete in 15 days"
+
+      - name: Wait for branch to be ready
+        run: |
+          echo "⏳ Waiting for Neon branch to be ready..."
+          MAX_ATTEMPTS=30
+          ATTEMPT=0
+
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            STATUS=$(curl -s -X GET \
+              "${{ env.NEON_API_URL }}/projects/${{ secrets.NEON_PROJECT_ID }}/branches/${{ env.BRANCH_ID }}" \
+              -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}" \
+              | jq -r '.branch.state')
+
+            echo "Attempt $((ATTEMPT+1))/$MAX_ATTEMPTS - Branch status: $STATUS"
+
+            if [ "$STATUS" == "ready" ]; then
+              echo "✅ Branch is ready"
+              break
+            fi
+
+            if [ $ATTEMPT -eq $((MAX_ATTEMPTS-1)) ]; then
+              echo "❌ Branch did not become ready in time"
+              exit 1
+            fi
+
+            sleep 10
+            ATTEMPT=$((ATTEMPT+1))
+          done
+
+      - name: Get branch connection string
+        id: connection
+        run: |
+          # Get connection details
+          RESPONSE=$(curl -s -X GET \
+            "${{ env.NEON_API_URL }}/projects/${{ secrets.NEON_PROJECT_ID }}/connection_uri?branch_id=${{ env.BRANCH_ID }}" \
+            -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}")
+
+          CONNECTION_URI=$(echo "$RESPONSE" | jq -r '.uri')
+
+          if [ "$CONNECTION_URI" == "null" ] || [ -z "$CONNECTION_URI" ]; then
+            echo "❌ Failed to get connection URI"
+            exit 1
+          fi
+
+          # Mask the connection string in logs
+          echo "::add-mask::$CONNECTION_URI"
+          echo "TEST_DATABASE_URL=$CONNECTION_URI" >> $GITHUB_ENV
+          echo "✅ Retrieved connection string for branch"
+
+      - name: Verify branch connection
+        working-directory: ./backend
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+        run: |
+          uv run python -c "
+          import asyncio
+          from sqlalchemy.ext.asyncio import create_async_engine
+          import os
+
+          async def check_connection():
+              engine = create_async_engine(os.getenv('DATABASE_URL'))
+              async with engine.connect() as conn:
+                  result = await conn.execute('SELECT version()')
+                  version = result.scalar()
+                  print(f'✅ Connected to Neon branch: {version}')
+              await engine.dispose()
+
+          asyncio.run(check_connection())
+          "
+
+      - name: Run Alembic migrations on branch
+        working-directory: ./backend
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+        run: |
+          echo "🚀 Running migrations on Neon branch..."
+          uv run alembic upgrade head
+
+          echo "✅ Migrations completed. Current status:"
+          uv run alembic current
+
+      - name: Verify schema
+        working-directory: ./backend
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+        run: |
+          uv run python -c "
+          import asyncio
+          from sqlalchemy.ext.asyncio import create_async_engine
+          from sqlalchemy import text
+          import os
+
+          async def verify_schema():
+              engine = create_async_engine(os.getenv('DATABASE_URL'))
+              async with engine.connect() as conn:
+                  result = await conn.execute(text('''
+                      SELECT table_name
+                      FROM information_schema.tables
+                      WHERE table_schema = 'public'
+                      ORDER BY table_name
+                  '''))
+                  tables = [row[0] for row in result]
+                  print('📋 Tables in test branch:')
+                  for table in tables:
+                      print(f'  - {table}')
+
+                  # Verify critical tables
+                  required_tables = [
+                      'customers', 'customer_identifiers', 'conversations',
+                      'messages', 'tickets', 'knowledge_base',
+                      'channel_configs', 'agent_metrics'
+                  ]
+                  missing = [t for t in required_tables if t not in tables]
+                  if missing:
+                      raise Exception(f'❌ Missing tables: {missing}')
+                  print(f'✅ All {len(required_tables)} critical tables present')
+              await engine.dispose()
+
+          asyncio.run(verify_schema())
+          "
+
+      - name: Set up test environment
+        working-directory: ./backend
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+        run: |
+          # Create .env.test for test configuration
+          cat > .env.test << EOF
+          DATABASE_URL=${{ env.TEST_DATABASE_URL }}
+          REDIS_URL=redis://localhost:6379
+          KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+          ENVIRONMENT=test
+          LOG_LEVEL=INFO
+          WEBHOOK_SECRET=test-webhook-secret-for-ci-testing-only
+          EOF
+
+      - name: Start Redis for tests
+        run: |
+          docker run -d -p 6379:6379 --name redis redis:7-alpine
+          sleep 5
+
+      - name: Start Kafka for tests
+        run: |
+          docker run -d -p 9092:9092 --name kafka \
+            -e KAFKA_ENABLE_KRAFT=yes \
+            -e KAFKA_CFG_PROCESS_ROLES=broker,controller \
+            -e KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+            -e KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093 \
+            -e KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT \
+            -e KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+            -e KAFKA_BROKER_ID=1 \
+            -e KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@localhost:9093 \
+            -e ALLOW_PLAINTEXT_LISTENER=yes \
+            bitnami/kafka:latest
+          sleep 15
+
+      - name: Run unit tests
+        working-directory: ./backend
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+        run: |
+          echo "🧪 Running unit tests..."
+          uv run pytest tests/unit/ -v --tb=short --maxfail=5
+
+      - name: Run integration tests
+        working-directory: ./backend
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+        run: |
+          echo "🧪 Running integration tests..."
+          uv run pytest tests/integration/ -v --tb=short --maxfail=5
+
+      - name: Run E2E tests
+        working-directory: ./backend
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+        run: |
+          echo "🧪 Running E2E tests..."
+          uv run pytest tests/e2e/ -v --tb=short --maxfail=5
+
+      - name: Run all tests with coverage
+        working-directory: ./backend
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+        run: |
+          echo "🧪 Running full test suite with coverage..."
+          uv run pytest \
+            --cov=src \
+            --cov-report=html \
+            --cov-report=term \
+            --cov-report=xml \
+            -v \
+            --tb=short
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./backend/coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+      - name: Test summary
+        if: success()
+        run: |
+          echo "✅ All tests passed on Neon branch"
+          echo "Branch: ${{ env.BRANCH_NAME }}"
+          echo "Branch ID: ${{ env.BRANCH_ID }}"
+          echo "🗑️ Branch will auto-delete in 15 days"
+
+      - name: Cleanup on failure
+        if: failure()
+        run: |
+          echo "❌ Tests failed on Neon branch"
+          echo "Branch: ${{ env.BRANCH_NAME }} (ID: ${{ env.BRANCH_ID }})"
+          echo "🗑️ Branch will auto-delete in 15 days"
+
+          # Optionally delete branch immediately on failure
+          # Uncomment if you want immediate cleanup on test failure
+          # curl -X DELETE \
+          #   "${{ env.NEON_API_URL }}/projects/${{ secrets.NEON_PROJECT_ID }}/branches/${{ env.BRANCH_ID }}" \
+          #   -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}"
+
+      - name: Stop test services
+        if: always()
+        run: |
+          docker stop redis kafka || true
+          docker rm redis kafka || true
+
+      - name: Branch info
+        if: always()
+        run: |
+          echo "📊 Neon Branch Information:"
+          echo "  Name: ${{ env.BRANCH_NAME }}"
+          echo "  ID: ${{ env.BRANCH_ID }}"
+          echo "  Auto-delete: 15 days from creation"
+          echo "  Created: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"

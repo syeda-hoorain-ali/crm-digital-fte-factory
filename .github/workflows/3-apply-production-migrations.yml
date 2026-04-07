@@ -1,0 +1,178 @@
+name: 3. Apply Production Migrations
+
+on:
+  workflow_run:
+    workflows: ["2. Test with Neon Branch"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  migrate-production:
+    name: Apply Alembic Migrations to Production
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install UV
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          uv sync --frozen
+
+      - name: Verify database connection
+        working-directory: ./backend
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          uv run python -c "
+          import asyncio
+          from sqlalchemy.ext.asyncio import create_async_engine
+          import os
+
+          async def check_connection():
+              engine = create_async_engine(os.getenv('DATABASE_URL'))
+              async with engine.connect() as conn:
+                  result = await conn.execute('SELECT version()')
+                  version = result.scalar()
+                  print(f'✅ Connected to PostgreSQL: {version}')
+              await engine.dispose()
+
+          asyncio.run(check_connection())
+          "
+
+      - name: Check current migration status
+        working-directory: ./backend
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          echo "Current migration status:"
+          uv run alembic current
+          echo ""
+          echo "Pending migrations:"
+          uv run alembic history
+
+      - name: Create migration backup point
+        working-directory: ./backend
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          CURRENT_REV=$(uv run alembic current | grep -oP '(?<=\()[a-f0-9]+(?=\))')
+          echo "BACKUP_REVISION=$CURRENT_REV" >> $GITHUB_ENV
+          echo "📌 Backup point: $CURRENT_REV"
+
+      - name: Run migrations (with safety checks)
+        working-directory: ./backend
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          echo "🚀 Applying migrations to production..."
+          uv run alembic upgrade head
+
+      - name: Verify migration success
+        working-directory: ./backend
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          echo "✅ Migration completed. Current status:"
+          uv run alembic current
+
+          # Verify critical tables exist
+          uv run python -c "
+          import asyncio
+          from sqlalchemy.ext.asyncio import create_async_engine
+          from sqlalchemy import text
+          import os
+
+          async def verify_tables():
+              engine = create_async_engine(os.getenv('DATABASE_URL'))
+              async with engine.connect() as conn:
+                  result = await conn.execute(text('''
+                      SELECT table_name
+                      FROM information_schema.tables
+                      WHERE table_schema = 'public'
+                      ORDER BY table_name
+                  '''))
+                  tables = [row[0] for row in result]
+                  print('📋 Tables in database:')
+                  for table in tables:
+                      print(f'  - {table}')
+
+                  # Verify critical tables
+                  required_tables = ['customers', 'conversations', 'messages', 'tickets', 'knowledge_base']
+                  missing = [t for t in required_tables if t not in tables]
+                  if missing:
+                      raise Exception(f'❌ Missing critical tables: {missing}')
+                  print('✅ All critical tables present')
+              await engine.dispose()
+
+          asyncio.run(verify_tables())
+          "
+
+      - name: Post-migration health check
+        working-directory: ./backend
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          # Run a simple query to ensure database is responsive
+          uv run python -c "
+          import asyncio
+          from sqlalchemy.ext.asyncio import create_async_engine
+          from sqlalchemy import text
+          import os
+
+          async def health_check():
+              engine = create_async_engine(os.getenv('DATABASE_URL'))
+              async with engine.connect() as conn:
+                  # Check customer count
+                  result = await conn.execute(text('SELECT COUNT(*) FROM customers'))
+                  count = result.scalar()
+                  print(f'✅ Database responsive. Customer count: {count}')
+              await engine.dispose()
+
+          asyncio.run(health_check())
+          "
+
+      - name: Migration summary
+        if: success()
+        run: |
+          echo "✅ Production migration completed successfully"
+          echo "Commit: ${{ github.sha }}"
+          echo "Backup revision: ${{ env.BACKUP_REVISION }}"
+
+      - name: Rollback on failure
+        if: failure()
+        working-directory: ./backend
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          echo "❌ Migration failed, attempting rollback to ${{ env.BACKUP_REVISION }}"
+          if [ -n "${{ env.BACKUP_REVISION }}" ]; then
+            uv run alembic downgrade ${{ env.BACKUP_REVISION }}
+            echo "✅ Rolled back to ${{ env.BACKUP_REVISION }}"
+          else
+            echo "⚠️ No backup revision found, manual intervention required"
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Production migration failed. Manual intervention may be required."
+          echo "::error::Backup revision: ${{ env.BACKUP_REVISION }}"

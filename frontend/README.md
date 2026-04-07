@@ -1,73 +1,133 @@
-# React + TypeScript + Vite
+# CloudStream CRM - Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**🌐 Live Demo**: [https://cloudstream-crm.vercel.app/](https://cloudstream-crm.vercel.app/)
 
-Currently, two official plugins are available:
+## Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+This is the frontend application for CloudStream CRM's Customer Success Digital FTE system. It provides a web-based support form for customers to submit support requests.
 
-## React Compiler
+## Features
 
-The React Compiler is currently not compatible with SWC. See [this issue](https://github.com/vitejs/vite-plugin-react/issues/428) for tracking the progress.
+- **Support Form**: Complete React component with validation
+  - Name, email, subject, category, and message fields
+  - Priority selection (low, medium, high)
+  - Category selection (general, technical, billing, bug_report, feedback)
+  - Real-time validation
+  - Success/error state handling
+  - Ticket ID generation and display
 
-## Expanding the ESLint configuration
+- **Responsive Design**: Mobile-first design using Tailwind CSS
+- **Modern UI**: Built with shadcn/ui components
+- **Type Safety**: Full TypeScript implementation
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Tech Stack
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- **Framework**: React 18 + TypeScript
+- **Build Tool**: Vite
+- **UI Library**: shadcn/ui + Tailwind CSS
+- **Forms**: react-hook-form + zod validation
+- **HTTP Client**: Axios
+- **Routing**: React Router
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Development
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Project Structure
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+frontend/
+├── src/
+│   ├── components/
+│   │   ├── support-form.tsx      # Main support form component
+│   │   └── ui/                   # shadcn/ui components
+│   ├── features/
+│   │   └── support-form/         # Support form feature module
+│   │       ├── hooks.ts          # Custom hooks
+│   │       ├── queries.ts        # API queries
+│   │       └── schema.ts         # Zod validation schemas
+│   ├── pages/
+│   │   ├── index.tsx             # Home page with support form
+│   │   └── not-found.tsx         # 404 page
+│   ├── App.tsx                   # Main app component
+│   └── main.tsx                  # Entry point
+├── public/
+│   └── favicon.ico
+└── package.json
+```
+
+## API Integration
+
+The support form submits to the backend API endpoint:
+
+```typescript
+POST /api/support/submit
+Content-Type: application/json
+
+{
+  "name": "Customer Name",
+  "email": "customer@example.com",
+  "subject": "Support Request",
+  "category": "technical",
+  "priority": "medium",
+  "message": "Description of the issue..."
+}
+```
+
+Response:
+```typescript
+{
+  "ticket_id": "uuid",
+  "message": "Thank you for contacting us!",
+  "estimated_response_time": "Usually within 5 minutes"
+}
+```
+
+## Deployment
+
+The frontend is deployed to Vercel at [https://cloudstream-crm.vercel.app/](https://cloudstream-crm.vercel.app/)
+
+### Automatic Deployment
+- Push to `main` branch triggers automatic deployment
+- Pull requests get preview URLs
+
+### Environment Variables
+Configure in Vercel dashboard:
+```bash
+VITE_API_URL=https://your-api-endpoint.com
+```
+
+## Component Documentation
+
+### SupportForm
+
+The main support form component with full validation and state management.
+
+**Features**:
+- Form validation using zod schema
+- Real-time error display
+- Loading states during submission
+- Success state with ticket ID display
+- Error handling with user-friendly messages
+
+**Usage**:
+```tsx
+import { SupportForm } from '@/components/support-form';
+
+function Page() {
+  return <SupportForm />;
+}
+```
+

@@ -4,6 +4,8 @@ Building Your First 24/7 AI Employee: From Incubation to Production
 
 This project implements a Customer Success Digital FTE (Full-Time Equivalent) for CloudStream CRM as part of the CRM Digital FTE Factory Hackathon. The goal is to create an AI employee that works 24/7 without breaks, sick days, or vacations, operating at <$1,000/year compared to a human FTE at $75,000/year.
 
+**🌐 Live Demo**: [https://cloudstream-crm.vercel.app/](https://cloudstream-crm.vercel.app/)
+
 ## 🎯 Project Overview
 
 The CRM Digital FTE is designed to handle customer support across multiple channels:
@@ -148,6 +150,28 @@ All 67 tests should pass.
 The MCP server is configured in `.mcp.json` and connects automatically when Claude Code starts.
 
 **For detailed setup instructions, see [`mcp-server/README.md`](mcp-server/README.md)**
+
+## 🚀 CI/CD Pipeline
+
+Automated deployment pipeline with GitHub Actions for continuous integration and delivery.
+
+### Pipeline Flow
+```
+1. Build & Push → 2. Test (Neon) → 3. Migrate (Prod) → 4. Deploy (GKE)
+   ~5-7 min         ~8-10 min          ~2-3 min          ~5-7 min
+                    [SAFETY GATE]
+```
+
+### Quick Links
+
+**Getting Started:**
+- 📖 **[CI/CD Quick Start](docs/CI_CD_QUICKSTART.md)** - Get running in 15 minutes
+- 📚 **[CI/CD Setup Guide](docs/CI_CD_SETUP.md)** - Comprehensive setup with explanations
+
+**Reference:**
+- 🔧 **[Troubleshooting Guide](docs/CI_CD_TROUBLESHOOTING.md)** - Fix common issues
+- 🔄 **[Rollback Procedures](docs/ROLLBACK_PROCEDURES.md)** - Emergency rollback guide
+- ✅ **[Implementation Status](docs/CI_CD_IMPLEMENTATION_COMPLETE.md)** - What was built
 
 ## 🎯 Key Features
 

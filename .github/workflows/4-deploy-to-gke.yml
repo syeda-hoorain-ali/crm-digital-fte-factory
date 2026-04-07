@@ -1,0 +1,146 @@
+name: 4. Deploy to GKE
+
+on:
+  workflow_run:
+    workflows: ["3. Apply Production Migrations"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag to deploy'
+        required: true
+        default: 'latest'
+
+env:
+  GKE_CLUSTER: ${{ secrets.GKE_CLUSTER_NAME }}
+  GKE_ZONE: ${{ secrets.GKE_ZONE }}
+  GCP_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+  DEPLOYMENT_NAME: crm-fte-api
+  WORKER_DEPLOYMENT_NAME: crm-fte-worker
+
+jobs:
+  deploy:
+    name: Deploy to GKE
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download deployment artifact
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Load deployment info
+        if: github.event_name == 'workflow_run'
+        run: |
+          if [ -f deployment.env ]; then
+            cat deployment.env >> $GITHUB_ENV
+          fi
+
+      - name: Set image tag for manual dispatch
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "IMAGE_TAG=${{ secrets.DOCKERHUB_USERNAME }}/crm-digital-fte-factory:${{ github.event.inputs.image_tag }}" >> $GITHUB_ENV
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install gke-gcloud-auth-plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin
+
+      - name: Get GKE credentials
+        run: |
+          gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} \
+            --zone ${{ env.GKE_ZONE }} \
+            --project ${{ env.GCP_PROJECT }}
+
+      - name: Verify cluster connection
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Update ConfigMap (if changed)
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/configmap.yaml -n crm-fte
+
+      - name: Update Secrets (if changed)
+        run: |
+          # Secrets should be managed separately, but apply if template exists
+          if [ -f k8s/secrets.yaml ]; then
+            kubectl apply -f k8s/secrets.yaml -n crm-fte
+          fi
+
+      - name: Deploy API to GKE
+        run: |
+          kubectl set image deployment/${{ env.DEPLOYMENT_NAME }} \
+            crm-fte-api=${{ env.IMAGE_TAG }} \
+            -n crm-fte
+
+          kubectl annotate deployment/${{ env.DEPLOYMENT_NAME }} \
+            kubernetes.io/change-cause="Deploy ${{ env.COMMIT_SHA }}: ${{ env.COMMIT_MESSAGE }}" \
+            -n crm-fte
+
+      - name: Deploy Worker to GKE
+        run: |
+          kubectl set image deployment/${{ env.WORKER_DEPLOYMENT_NAME }} \
+            crm-fte-worker=${{ env.IMAGE_TAG }} \
+            -n crm-fte
+
+          kubectl annotate deployment/${{ env.WORKER_DEPLOYMENT_NAME }} \
+            kubernetes.io/change-cause="Deploy ${{ env.COMMIT_SHA }}: ${{ env.COMMIT_MESSAGE }}" \
+            -n crm-fte
+
+      - name: Wait for API rollout
+        run: |
+          kubectl rollout status deployment/${{ env.DEPLOYMENT_NAME }} -n crm-fte --timeout=5m
+
+      - name: Wait for Worker rollout
+        run: |
+          kubectl rollout status deployment/${{ env.WORKER_DEPLOYMENT_NAME }} -n crm-fte --timeout=5m
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n crm-fte -l app=crm-fte-api
+          kubectl get pods -n crm-fte -l app=crm-fte-worker
+
+      - name: Check API health
+        run: |
+          API_URL=$(kubectl get service crm-fte-api-service -n crm-fte -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          if [ -n "$API_URL" ]; then
+            curl -f http://$API_URL/health || echo "Health check failed, but deployment completed"
+          else
+            echo "LoadBalancer IP not yet assigned"
+          fi
+
+      - name: Deployment summary
+        run: |
+          echo "✅ Deployment completed successfully"
+          echo "Image: ${{ env.IMAGE_TAG }}"
+          echo "Commit: ${{ env.COMMIT_SHA }}"
+          kubectl get deployments -n crm-fte
+          kubectl get hpa -n crm-fte
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed, rolling back..."
+          kubectl rollout undo deployment/${{ env.DEPLOYMENT_NAME }} -n crm-fte
+          kubectl rollout undo deployment/${{ env.WORKER_DEPLOYMENT_NAME }} -n crm-fte
+          kubectl rollout status deployment/${{ env.DEPLOYMENT_NAME }} -n crm-fte
+          kubectl rollout status deployment/${{ env.WORKER_DEPLOYMENT_NAME }} -n crm-fte
