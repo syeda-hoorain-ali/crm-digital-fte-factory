@@ -329,9 +329,9 @@ jobs:
       - name: Run unit tests
         working-directory: ./backend
         env:
-          DATABASE_URL: sqlite+aiosqlite:///:memory:
-          REDIS_URL: redis://localhost:6379/0
-          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          REDIS_URL: "redis://localhost:6379/0"
+          KAFKA_BOOTSTRAP_SERVERS: "localhost:9092"
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           echo "🧪 Running unit tests..."
