@@ -31,25 +31,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download deployment artifact
-        if: github.event_name == 'workflow_run'
-        uses: actions/download-artifact@v4
-        with:
-          name: deployment-info
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
-
-      - name: Load deployment info
+      - name: Set image tag from commit SHA
         if: github.event_name == 'workflow_run'
         run: |
-          if [ -f deployment.env ]; then
-            cat deployment.env >> $GITHUB_ENV
-          fi
+          # Construct image tag from commit SHA (same format as workflow 1)
+          IMAGE_TAG="${{ secrets.DOCKERHUB_USERNAME }}/crm-digital-fte-factory:${{ github.sha }}"
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "📦 Will deploy image: $IMAGE_TAG"
 
       - name: Set image tag for manual dispatch
         if: github.event_name == 'workflow_dispatch'
         run: |
           echo "IMAGE_TAG=${{ secrets.DOCKERHUB_USERNAME }}/crm-digital-fte-factory:${{ github.event.inputs.image_tag }}" >> $GITHUB_ENV
+          echo "COMMIT_SHA=${{ github.sha }}" >> $GITHUB_ENV
+          echo "COMMIT_MESSAGE=Manual dispatch by ${{ github.actor }}" >> $GITHUB_ENV
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -87,6 +82,7 @@ jobs:
           fi
 
       - name: Deploy API to GKE
+        id: deploy_api
         run: |
           kubectl set image deployment/${{ env.DEPLOYMENT_NAME }} \
             crm-fte-api=${{ env.IMAGE_TAG }} \
@@ -97,6 +93,7 @@ jobs:
             -n crm-fte
 
       - name: Deploy Worker to GKE
+        id: deploy_worker
         run: |
           kubectl set image deployment/${{ env.WORKER_DEPLOYMENT_NAME }} \
             crm-fte-worker=${{ env.IMAGE_TAG }} \
@@ -107,10 +104,12 @@ jobs:
             -n crm-fte
 
       - name: Wait for API rollout
+        id: wait_api
         run: |
           kubectl rollout status deployment/${{ env.DEPLOYMENT_NAME }} -n crm-fte --timeout=5m
 
       - name: Wait for Worker rollout
+        id: wait_worker
         run: |
           kubectl rollout status deployment/${{ env.WORKER_DEPLOYMENT_NAME }} -n crm-fte --timeout=5m
 
@@ -122,11 +121,20 @@ jobs:
       - name: Check API health
         run: |
           API_URL=$(kubectl get service crm-fte-api-service -n crm-fte -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-          if [ -n "$API_URL" ]; then
-            curl -f http://$API_URL/health || echo "Health check failed, but deployment completed"
-          else
-            echo "LoadBalancer IP not yet assigned"
+          if [ -z "$API_URL" ]; then
+            echo "⚠️ LoadBalancer IP not assigned, skipping external health check"
+            # Fall back to in-cluster check
+            kubectl exec -n crm-fte deploy/${{ env.DEPLOYMENT_NAME }} -- curl -sf http://localhost:8080/health
+            exit 0
           fi
+          # Retry for up to 60s — pod may be ready but app still initialising
+          for i in {1..6}; do
+            curl -sf http://$API_URL/health && echo "✅ Health check passed" && exit 0
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "❌ Health check failed after retries"
+          exit 1
 
       - name: Deployment summary
         run: |
@@ -137,7 +145,7 @@ jobs:
           kubectl get hpa -n crm-fte
 
       - name: Rollback on failure
-        if: failure()
+        if: failure() && (steps.deploy_api.outcome == 'failure' || steps.deploy_worker.outcome == 'failure' || steps.wait_api.outcome == 'failure' || steps.wait_worker.outcome == 'failure')
         run: |
           echo "❌ Deployment failed, rolling back..."
           kubectl rollout undo deployment/${{ env.DEPLOYMENT_NAME }} -n crm-fte
