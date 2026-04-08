@@ -110,7 +110,7 @@ jobs:
         id: deploy_worker
         run: |
           kubectl set image deployment/${{ env.WORKER_DEPLOYMENT_NAME }} \
-            fte-message-processor=${{ env.IMAGE_TAG }} \
+            fte-worker=${{ env.IMAGE_TAG }} \
             -n ${{ env.NAMESPACE }}
 
           kubectl annotate deployment/${{ env.WORKER_DEPLOYMENT_NAME }} \
