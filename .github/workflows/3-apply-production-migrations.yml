@@ -72,12 +72,13 @@ jobs:
           uv run python -c "
           import asyncio
           from sqlalchemy.ext.asyncio import create_async_engine
+          from sqlalchemy import text
           import os
 
           async def check_connection():
               engine = create_async_engine(os.getenv('DATABASE_URL'))
               async with engine.connect() as conn:
-                  result = await conn.execute('SELECT version()')
+                  result = await conn.execute(text('SELECT version()'))
                   version = result.scalar()
                   print(f'✅ Connected to PostgreSQL: {version}')
               await engine.dispose()
@@ -156,7 +157,7 @@ jobs:
       - name: Post-migration health check
         working-directory: ./backend
         env:
-          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          DATABASE_URL: ${{ env.DATABASE_URL }}
         run: |
           # Run a simple query to ensure database is responsive
           uv run python -c "
@@ -188,7 +189,7 @@ jobs:
         if: failure()
         working-directory: ./backend
         env:
-          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          DATABASE_URL: ${{ env.DATABASE_URL }}
         run: |
           echo "❌ Migration failed, attempting rollback to ${{ env.BACKUP_REVISION }}"
           if [ -n "${{ env.BACKUP_REVISION }}" ]; then
