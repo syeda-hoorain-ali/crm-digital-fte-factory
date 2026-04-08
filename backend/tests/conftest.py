@@ -17,7 +17,7 @@ async def session_fixture() -> AsyncGenerator[AsyncSession, None]:
     Used by both E2E and integration tests that require PostgreSQL-specific features.
     """
     # Get DATABASE_URL from environment
-    database_url = os.getenv("DATABASE_URL")
+    database_url = os.getenv("TEST_DATABASE_URL", os.getenv("DATABASE_URL"))
     if not database_url:
         pytest.skip("DATABASE_URL not set - skipping test requiring PostgreSQL")
 

@@ -1,5 +1,6 @@
 """Unit test fixtures for fast, isolated testing with SQLite."""
 
+import os
 import pytest
 from typing import Any, AsyncGenerator, Generator
 from sqlmodel import create_engine, Session, SQLModel
@@ -34,17 +35,26 @@ def engine_fixture() -> Engine:
 
 @pytest.fixture(name="session")
 async def session_fixture() -> AsyncGenerator[AsyncSession, None]:
-    """Create async SQLite session for unit tests.
+    """Create async session for unit tests.
 
-    Note: This uses SQLite which doesn't support PostgreSQL-specific features.
-    For tests requiring PostgreSQL features (UUID, jsonb, etc.), use session instead.
+    Uses DATABASE_URL from environment if set (for CI with PostgreSQL),
+    otherwise falls back to SQLite for fast local testing.
     """
-    # Create async engine for unit tests
-    async_engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    database_url = os.getenv("TEST_DATABASE_URL", os.getenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:"))
+
+    # Determine if we're using PostgreSQL or SQLite
+    is_postgres = database_url.startswith(("postgresql://", "postgresql+asyncpg://"))
+
+    if is_postgres:
+        # Use PostgreSQL (CI environment with Neon branch)
+        async_engine = create_async_engine(database_url, echo=False)
+    else:
+        # Use SQLite (local development)
+        async_engine = create_async_engine(
+            database_url,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
 
     # Create tables
     async with async_engine.begin() as conn:
@@ -56,8 +66,11 @@ async def session_fixture() -> AsyncGenerator[AsyncSession, None]:
     )
 
     async with async_session() as session:
-        yield session
-        await session.rollback()
+        try:
+            yield session
+        finally:
+            await session.rollback()
+            await async_engine.dispose()
 
 
 @pytest.fixture
