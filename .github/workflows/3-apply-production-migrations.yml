@@ -102,9 +102,17 @@ jobs:
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
         run: |
-          CURRENT_REV=$(uv run alembic current | grep -oP '(?<=\()[a-f0-9]+(?=\))')
-          echo "BACKUP_REVISION=$CURRENT_REV" >> $GITHUB_ENV
-          echo "📌 Backup point: $CURRENT_REV"
+          # Get current revision (may be empty for initial migration)
+          CURRENT_OUTPUT=$(uv run alembic current 2>&1 || true)
+          CURRENT_REV=$(echo "$CURRENT_OUTPUT" | grep -oP '(?<=\()[a-f0-9]+(?=\))' || echo "")
+
+          if [ -z "$CURRENT_REV" ]; then
+            echo "📌 No current revision (initial migration)"
+            echo "BACKUP_REVISION=none" >> $GITHUB_ENV
+          else
+            echo "📌 Backup point: $CURRENT_REV"
+            echo "BACKUP_REVISION=$CURRENT_REV" >> $GITHUB_ENV
+          fi
 
       - name: Run migrations (with safety checks)
         working-directory: ./backend
