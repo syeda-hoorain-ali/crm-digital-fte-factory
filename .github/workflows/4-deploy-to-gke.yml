@@ -18,8 +18,9 @@ env:
   GKE_CLUSTER: ${{ secrets.GKE_CLUSTER_NAME }}
   GKE_ZONE: ${{ secrets.GKE_ZONE }}
   GCP_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
-  DEPLOYMENT_NAME: crm-fte-api
-  WORKER_DEPLOYMENT_NAME: crm-fte-worker
+  NAMESPACE: customer-success-fte
+  DEPLOYMENT_NAME: fte-api
+  WORKER_DEPLOYMENT_NAME: fte-message-processor
 
 jobs:
   deploy:
@@ -72,59 +73,59 @@ jobs:
       - name: Update ConfigMap (if changed)
         run: |
           kubectl apply -f k8s/namespace.yaml
-          kubectl apply -f k8s/configmap.yaml -n crm-fte
+          kubectl apply -f k8s/configmap.yaml -n ${{ env.NAMESPACE }}
 
       - name: Update Secrets (if changed)
         run: |
           # Secrets should be managed separately, but apply if template exists
           if [ -f k8s/secrets.yaml ]; then
-            kubectl apply -f k8s/secrets.yaml -n crm-fte
+            kubectl apply -f k8s/secrets.yaml -n ${{ env.NAMESPACE }}
           fi
 
       - name: Deploy API to GKE
         id: deploy_api
         run: |
           kubectl set image deployment/${{ env.DEPLOYMENT_NAME }} \
-            crm-fte-api=${{ env.IMAGE_TAG }} \
-            -n crm-fte
+            fte-api=${{ env.IMAGE_TAG }} \
+            -n ${{ env.NAMESPACE }}
 
           kubectl annotate deployment/${{ env.DEPLOYMENT_NAME }} \
-            kubernetes.io/change-cause="Deploy ${{ env.COMMIT_SHA }}: ${{ env.COMMIT_MESSAGE }}" \
-            -n crm-fte
+            kubernetes.io/change-cause="Deploy ${{ github.sha }}" \
+            -n ${{ env.NAMESPACE }}
 
       - name: Deploy Worker to GKE
         id: deploy_worker
         run: |
           kubectl set image deployment/${{ env.WORKER_DEPLOYMENT_NAME }} \
-            crm-fte-worker=${{ env.IMAGE_TAG }} \
-            -n crm-fte
+            fte-message-processor=${{ env.IMAGE_TAG }} \
+            -n ${{ env.NAMESPACE }}
 
           kubectl annotate deployment/${{ env.WORKER_DEPLOYMENT_NAME }} \
-            kubernetes.io/change-cause="Deploy ${{ env.COMMIT_SHA }}: ${{ env.COMMIT_MESSAGE }}" \
-            -n crm-fte
+            kubernetes.io/change-cause="Deploy ${{ github.sha }}" \
+            -n ${{ env.NAMESPACE }}
 
       - name: Wait for API rollout
         id: wait_api
         run: |
-          kubectl rollout status deployment/${{ env.DEPLOYMENT_NAME }} -n crm-fte --timeout=5m
+          kubectl rollout status deployment/${{ env.DEPLOYMENT_NAME }} -n ${{ env.NAMESPACE }} --timeout=5m
 
       - name: Wait for Worker rollout
         id: wait_worker
         run: |
-          kubectl rollout status deployment/${{ env.WORKER_DEPLOYMENT_NAME }} -n crm-fte --timeout=5m
+          kubectl rollout status deployment/${{ env.WORKER_DEPLOYMENT_NAME }} -n ${{ env.NAMESPACE }} --timeout=5m
 
       - name: Verify deployment
         run: |
-          kubectl get pods -n crm-fte -l app=crm-fte-api
-          kubectl get pods -n crm-fte -l app=crm-fte-worker
+          kubectl get pods -n ${{ env.NAMESPACE }} -l app=customer-success-fte,component=api
+          kubectl get pods -n ${{ env.NAMESPACE }} -l app=customer-success-fte,component=message-processor
 
       - name: Check API health
         run: |
-          API_URL=$(kubectl get service crm-fte-api-service -n crm-fte -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          API_URL=$(kubectl get service customer-success-fte -n ${{ env.NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           if [ -z "$API_URL" ]; then
             echo "⚠️ LoadBalancer IP not assigned, skipping external health check"
             # Fall back to in-cluster check
-            kubectl exec -n crm-fte deploy/${{ env.DEPLOYMENT_NAME }} -- curl -sf http://localhost:8080/health
+            kubectl exec -n ${{ env.NAMESPACE }} deploy/${{ env.DEPLOYMENT_NAME }} -- curl -sf http://localhost:8000/health
             exit 0
           fi
           # Retry for up to 60s — pod may be ready but app still initialising
@@ -140,15 +141,15 @@ jobs:
         run: |
           echo "✅ Deployment completed successfully"
           echo "Image: ${{ env.IMAGE_TAG }}"
-          echo "Commit: ${{ env.COMMIT_SHA }}"
-          kubectl get deployments -n crm-fte
-          kubectl get hpa -n crm-fte
+          echo "Commit: ${{ github.sha }}"
+          kubectl get deployments -n ${{ env.NAMESPACE }}
+          kubectl get hpa -n ${{ env.NAMESPACE }}
 
       - name: Rollback on failure
         if: failure() && (steps.deploy_api.outcome == 'failure' || steps.deploy_worker.outcome == 'failure' || steps.wait_api.outcome == 'failure' || steps.wait_worker.outcome == 'failure')
         run: |
           echo "❌ Deployment failed, rolling back..."
-          kubectl rollout undo deployment/${{ env.DEPLOYMENT_NAME }} -n crm-fte
-          kubectl rollout undo deployment/${{ env.WORKER_DEPLOYMENT_NAME }} -n crm-fte
-          kubectl rollout status deployment/${{ env.DEPLOYMENT_NAME }} -n crm-fte
-          kubectl rollout status deployment/${{ env.WORKER_DEPLOYMENT_NAME }} -n crm-fte
+          kubectl rollout undo deployment/${{ env.DEPLOYMENT_NAME }} -n ${{ env.NAMESPACE }}
+          kubectl rollout undo deployment/${{ env.WORKER_DEPLOYMENT_NAME }} -n ${{ env.NAMESPACE }}
+          kubectl rollout status deployment/${{ env.DEPLOYMENT_NAME }} -n ${{ env.NAMESPACE }}
+          kubectl rollout status deployment/${{ env.WORKER_DEPLOYMENT_NAME }} -n ${{ env.NAMESPACE }}
