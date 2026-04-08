@@ -2,7 +2,7 @@ name: 2. Test with Neon Branch
 
 on:
   workflow_run:
-    workflows: ["1. Build and Push Docker Image"]
+    workflows: ["4. Build and Push Docker Image"]
     types:
       - completed
     branches:
