@@ -6,7 +6,7 @@ metadata:
   labels:
     app: customer-success-fte
 spec:
-  type: ClusterIP
+  type: LoadBalancer
   selector:
     app: customer-success-fte
     component: api
