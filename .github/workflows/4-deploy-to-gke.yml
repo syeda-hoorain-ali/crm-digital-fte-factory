@@ -147,12 +147,30 @@ jobs:
         run: |
           API_URL=$(kubectl get service customer-success-fte -n ${{ env.NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           if [ -z "$API_URL" ]; then
-            echo "⚠️ LoadBalancer IP not assigned, skipping external health check"
-            # Fall back to in-cluster check
-            kubectl exec -n ${{ env.NAMESPACE }} deploy/${{ env.DEPLOYMENT_NAME }} -- curl -sf http://localhost:8000/health
-            exit 0
+            echo "⚠️ LoadBalancer IP not assigned, using port-forward fallback..."
+
+            # Forward local port to the service (not the pod — survives pod restarts)
+            kubectl port-forward service/customer-success-fte 8080:80 -n ${{ env.NAMESPACE }} &
+            PF_PID=$!
+
+            # Give it a moment to establish
+            sleep 3
+
+            # Retry against forwarded port
+            for i in {1..6}; do
+              if curl -sf http://localhost:8080/health; then
+                echo "✅ Health check passed"
+                kill $PF_PID
+                exit 0
+              fi
+              echo "Attempt $i failed, retrying in 10s..."
+              sleep 10
+            done
+            kill $PF_PID 2>/dev/null || true
+            echo "❌ Health check failed after retries"
+            exit 1
           fi
-          # Retry for up to 60s — pod may be ready but app still initialising
+          # External IP available — check directly
           for i in {1..6}; do
             curl -sf http://$API_URL/health && echo "✅ Health check passed" && exit 0
             echo "Attempt $i failed, retrying in 10s..."
