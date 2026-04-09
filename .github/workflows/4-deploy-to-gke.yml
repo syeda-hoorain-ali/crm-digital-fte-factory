@@ -75,12 +75,23 @@ jobs:
           kubectl apply -f k8s/namespace.yaml
           kubectl apply -f k8s/configmap.yaml -n ${{ env.NAMESPACE }}
 
-      - name: Update Secrets (if changed)
+      - name: Create or update secrets
         run: |
-          # Secrets should be managed separately, but apply if template exists
-          if [ -f k8s/secrets.yaml ]; then
-            kubectl apply -f k8s/secrets.yaml -n ${{ env.NAMESPACE }}
-          fi
+          # Create secrets from GitHub secrets (not from template file)
+          kubectl create secret generic fte-secrets \
+            --from-literal=DATABASE_URL="${{ secrets.PRODUCTION_DATABASE_URL }}" \
+            --from-literal=GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
+            --from-literal=GMAIL_SERVICE_ACCOUNT_PATH="${{ secrets.GMAIL_SERVICE_ACCOUNT_PATH }}" \
+            --from-literal=GMAIL_SUPPORT_CREDENTIALS_PATH="${{ secrets.GMAIL_SUPPORT_CREDENTIALS_PATH }}" \
+            --from-literal=GMAIL_WEBHOOK_SECRET="${{ secrets.GMAIL_WEBHOOK_SECRET }}" \
+            --from-literal=TWILIO_ACCOUNT_SID="${{ secrets.TWILIO_ACCOUNT_SID }}" \
+            --from-literal=TWILIO_AUTH_TOKEN="${{ secrets.TWILIO_AUTH_TOKEN }}" \
+            --from-literal=TWILIO_APP_NUMBER="${{ secrets.TWILIO_APP_NUMBER }}" \
+            --from-literal=TWILIO_WEBHOOK_SECRET="${{ secrets.TWILIO_WEBHOOK_SECRET }}" \
+            --from-literal=SMTP_USERNAME="${{ secrets.SMTP_USERNAME }}" \
+            --from-literal=SMTP_PASSWORD="${{ secrets.SMTP_PASSWORD }}" \
+            -n ${{ env.NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply infrastructure (Redis, Kafka)
         run: |
