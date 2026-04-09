@@ -20,7 +20,7 @@ info:
   version: 1.0.0
   contact:
     name: CRM Digital FTE Factory
-    url: https://github.com/your-org/crm-digital-fte-factory
+    url: https://github.com/syeda-hoorain-ali/crm-digital-fte-factory
 
 servers:
   - url: http://localhost:8000

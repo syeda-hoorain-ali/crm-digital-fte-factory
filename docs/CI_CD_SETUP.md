@@ -23,47 +23,52 @@ This project uses 4 GitHub Actions workflows for continuous integration and depl
 
 ### Sequential Workflows
 1. **Build and Push Docker Image** → Builds and pushes to DockerHub
-2. **Deploy to GKE** → Deploys the new image to Google Kubernetes Engine
-
-### Parallel Workflows (after deployment)
+2. **Test with Neon Branch** → Creates temporary Neon branch, runs migrations, executes all tests
 3. **Apply Production Migrations** → Runs Alembic migrations on production database
-4. **Test with Neon Branch** → Creates temporary Neon branch, runs migrations, executes all tests
+4. **Deploy to GKE** → Deploys the new image to Google Kubernetes Engine
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Push to main branch                     │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────────────────────┐
-│  1. Build and Push Docker Image                             │
-│     - Build backend Docker image                            │
-│     - Push to DockerHub with SHA tag                        │
-│     - Create deployment artifact                            │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────────────────────┐
-│  2. Deploy to GKE                                           │
-│     - Authenticate to GCP                                   │
-│     - Update K8s deployments (API + Worker)                 │
-│     - Wait for rollout completion                           │
-│     - Health check                                          │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-          ┌───────────┴───────────┐
-          │                       │
-          ▼                       ▼
-┌─────────────────────┐  ┌─────────────────────┐
-│ 3. Apply Production │  │ 4. Test with Neon   │
-│    Migrations       │  │    Branch           │
-│                     │  │                     │
-│ - Connect to prod   │  │ - Create Neon branch│
-│ - Backup revision   │  │ - Run migrations    │
-│ - Run migrations    │  │ - Run all tests     │
-│ - Verify tables     │  │ - Auto-delete in    │
-│ - Rollback on fail  │  │   15 days           │
-└─────────────────────┘  └─────────────────────┘
+┌──────────────────────────────────────────────┐
+│             Push to main branch              │
+└──────────────────────┬───────────────────────┘
+                       │
+                       ▼
+┌──────────────────────────────────────────────┐
+│  1. Build and Push Docker Image              │
+│     - Build backend Docker image             │
+│     - Push to DockerHub with SHA tag         │
+│     - Image: username/repo:commit-sha        │
+└──────────────────────┬───────────────────────┘
+                       │
+                       ▼
+┌──────────────────────────────────────────────┐
+│  2. Test with Neon Branch (~5m)              │
+│     - Create temporary neon branch           │
+│     - Run migrations                         │
+│     - Run all test cases                     │
+└──────────────────────┬───────────────────────┘
+                       │
+                       ▼
+┌──────────────────────────────────────────────┐
+│  3. Apply Production Migrations (~30s)       │
+│     - Connect to production database         │
+│     - Backup current revision                │
+│     - Run alembic upgrade head               │
+│     - Verify migration success               │
+│     - Auto-rollback on failure               │
+└──────────────────────┬───────────────────────┘
+                       │
+                       ▼
+┌──────────────────────────────────────────────┐
+│  4. Deploy to GKE (~2m30s)                   │
+│     - Authenticate to GCP                    │
+│     - Apply k8s manifests (if changed)       │
+│     - Update deployments (API + Worker)      │
+│     - Rolling update (zero downtime)         │
+│     - Wait for rollout completion            │
+│     - Health check via kubectl port-forward  │
+│     - Display LoadBalancer external IP       │
+└──────────────────────────────────────────────┘
 ```
 
 ---
@@ -534,7 +539,7 @@ uv run alembic upgrade head --sql > migration.sql
 For issues or questions:
 1. Check workflow logs in GitHub Actions
 2. Review this documentation
-3. Check project issues: https://github.com/YOUR_USERNAME/crm-digital-fte-factory/issues
+3. Check project issues: https://github.com/syeda-hoorain-ali/crm-digital-fte-factory/issues
 4. Contact DevOps team
 
 ---

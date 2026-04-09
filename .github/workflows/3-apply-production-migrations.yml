@@ -2,7 +2,7 @@ name: 3. Apply Production Migrations
 
 on:
   workflow_run:
-    workflows: ["1. Build and Push Docker Image"]
+    workflows: ["2. Test with Neon Branch"]
     types:
       - completed
     branches:

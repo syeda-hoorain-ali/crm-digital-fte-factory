@@ -282,27 +282,35 @@ curl -X GET \
 Push to main
     ↓
 ┌─────────────────────────────────┐
-│ 1. Build and Push Docker Image │
+│ 1. Build and Push Docker Image  │
 │    - Build backend image        │
 │    - Push to DockerHub          │
 │    - Tag with commit SHA        │
-└────────────┬────────────────────┘
-             ↓
+└────────────────┬────────────────┘
+                 ↓
 ┌─────────────────────────────────┐
-│ 2. Deploy to GKE                │
-│    - Update K8s deployments     │
+│ 2. Neon Branch and Testing      │
+│    - Create neon branch         │
+│    - Run migrations             │
+│    - Run test cases             │
+└────────────────┬────────────────┘
+                 ↓
+┌─────────────────────────────────┐
+│ 3. Apply Production Migrations  │
+│    - Backup current revision    │
+│    - Run alembic upgrade head   │
+│    - Verify migration success   │
+│    - Auto-rollback on failure   │
+└────────────────┬────────────────┘
+                 ↓
+┌─────────────────────────────────┐
+│ 4. Deploy to GKE                │
+│    - Apply k8s manifests        │
+│    - Update deployments         │
 │    - Rolling update (zero down) │
-│    - Health check               │
-└────────────┬────────────────────┘
-             ↓
-      ┌──────┴──────┐
-      ↓             ↓
-┌──────────────┐  ┌──────────────────┐
-│ 3. Migrations│  │ 4. Neon Testing  │
-│    - Backup  │  │    - Create branch│
-│    - Migrate │  │    - Run migrations│
-│    - Verify  │  │    - Run tests    │
-└──────────────┘  └──────────────────┘
+│    - Health check via port-fwd  │
+│    - Display external IP        │
+└─────────────────────────────────┘
 ```
 
 ---
@@ -416,10 +424,10 @@ Add these to your README.md:
 ```markdown
 ## CI/CD Status
 
-[![Build and Push](https://github.com/YOUR_USERNAME/crm-digital-fte-factory/actions/workflows/1-build-and-push-docker.yml/badge.svg)](https://github.com/YOUR_USERNAME/crm-digital-fte-factory/actions/workflows/1-build-and-push-docker.yml)
-[![Deploy to GKE](https://github.com/YOUR_USERNAME/crm-digital-fte-factory/actions/workflows/2-deploy-to-gke.yml/badge.svg)](https://github.com/YOUR_USERNAME/crm-digital-fte-factory/actions/workflows/2-deploy-to-gke.yml)
-[![Production Migrations](https://github.com/YOUR_USERNAME/crm-digital-fte-factory/actions/workflows/3-apply-production-migrations.yml/badge.svg)](https://github.com/YOUR_USERNAME/crm-digital-fte-factory/actions/workflows/3-apply-production-migrations.yml)
-[![Neon Testing](https://github.com/YOUR_USERNAME/crm-digital-fte-factory/actions/workflows/4-test-with-neon-branch.yml/badge.svg)](https://github.com/YOUR_USERNAME/crm-digital-fte-factory/actions/workflows/4-test-with-neon-branch.yml)
+[![Build and Push](https://github.com/syeda-hoorain-ali/crm-digital-fte-factory/actions/workflows/1-build-and-push-docker.yml/badge.svg)](https://github.com/syeda-hoorain-ali/crm-digital-fte-factory/actions/workflows/1-build-and-push-docker.yml)
+[![Deploy to GKE](https://github.com/syeda-hoorain-ali/crm-digital-fte-factory/actions/workflows/2-deploy-to-gke.yml/badge.svg)](https://github.com/syeda-hoorain-ali/crm-digital-fte-factory/actions/workflows/2-deploy-to-gke.yml)
+[![Production Migrations](https://github.com/syeda-hoorain-ali/crm-digital-fte-factory/actions/workflows/3-apply-production-migrations.yml/badge.svg)](https://github.com/syeda-hoorain-ali/crm-digital-fte-factory/actions/workflows/3-apply-production-migrations.yml)
+[![Neon Testing](https://github.com/syeda-hoorain-ali/crm-digital-fte-factory/actions/workflows/4-test-with-neon-branch.yml/badge.svg)](https://github.com/syeda-hoorain-ali/crm-digital-fte-factory/actions/workflows/4-test-with-neon-branch.yml)
 ```
 
 ---
@@ -428,8 +436,8 @@ Add these to your README.md:
 
 - **Documentation**: See `docs/CI_CD_SETUP.md` for detailed setup
 - **Scripts**: Run `./scripts/validate-ci-secrets.sh` to check configuration
-- **GitHub Actions**: https://github.com/YOUR_USERNAME/crm-digital-fte-factory/actions
-- **Issues**: https://github.com/YOUR_USERNAME/crm-digital-fte-factory/issues
+- **GitHub Actions**: https://github.com/syeda-hoorain-ali/crm-digital-fte-factory/actions
+- **Issues**: https://github.com/syeda-hoorain-ali/crm-digital-fte-factory/issues
 
 ---
 

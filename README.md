@@ -34,37 +34,26 @@ This implementation uses a **file-based MCP (Model Context Protocol) server** ar
 
 ### Production Deployment
 
-The system is ready for production deployment to Kubernetes with:
-- ✅ Docker image built and tested (`customer-success-fte:test`)
-- ✅ 10 Kubernetes manifests (namespace, configmap, secrets, 2 deployments, service, ingress, 2 HPAs)
-- ✅ Automated deployment scripts (`scripts/deploy-k8s.sh`, `scripts/cleanup-k8s.sh`)
-- ✅ Comprehensive documentation
+The system is deployed to Google Kubernetes Engine (GKE) with:
+- ✅ Automated CI/CD pipeline (GitHub Actions)
+- ✅ Docker images tagged with commit SHA
+- ✅ LoadBalancer service for external access
+- ✅ Kubernetes manifests (namespace, configmap, secrets, deployments, service, HPA)
+- ✅ Zero-downtime rolling updates
+- ✅ Automated database migrations
 
-**Quick Deploy:**
-```bash
-# 1. Set environment variables
-export GEMINI_API_KEY="your-key"
-export POSTGRES_PASSWORD="your-password"
-export TWILIO_ACCOUNT_SID="your-sid"
-export TWILIO_AUTH_TOKEN="your-token"
-export TWILIO_WHATSAPP_NUMBER="+1234567890"
-export WEBHOOK_SECRET="your-secret-min-32-chars"
-export INGRESS_HOSTNAME="api.yourdomain.com"
-export CONTAINER_REGISTRY="your-registry"
-export IMAGE_TAG="v1.0.0"
+**Live API:**
+- Health Check: http://35.223.193.60/health
+- API Docs: http://35.223.193.60/docs
 
-# 2. Push Docker image to registry
-docker tag customer-success-fte:test $CONTAINER_REGISTRY/customer-success-fte:$IMAGE_TAG
-docker push $CONTAINER_REGISTRY/customer-success-fte:$IMAGE_TAG
+**Deployment Status:**
+- API: 1/1 replicas ready (auto-scaled)
+- Worker: 3/3 replicas ready (auto-scaled)
+- Redis: 1/1 replicas ready
+- Kafka: 1/1 replicas ready
 
-# 3. Deploy to Kubernetes
-./scripts/deploy-k8s.sh
-```
-
-**Documentation:**
-- **[Kubernetes Deployment Quickstart](specs/007-k8s-deployment/quickstart.md)** - Step-by-step deployment guide
-- **[Docker Build Guide](docs/docker-build.md)** - Docker image preparation
-- **[Deployment Operations](docs/deployment.md)** - Production operations and security
+**CI/CD Pipeline:**
+See [CI/CD Quick Start](docs/CI_CD_QUICKSTART.md) for setup instructions.
 
 ### MCP Server
 
@@ -175,8 +164,6 @@ Automated deployment pipeline with GitHub Actions for continuous integration and
 
 ## 🎯 Key Features
 
-gh api repos/panaversity/agentfactory/contents/apps/learn-app/docs/05-Building-Custom-Agents --jq '.[] | {name: .name, path: .path, type: .type, download_url: .download_url, size: .size}'
-
 ### Multi-Channel Support
 - **Gmail**: Formal email responses with proper structure
 - **WhatsApp**: Casual, concise responses (under 60 words)
@@ -263,10 +250,10 @@ This project follows **Spec-Driven Development (SDD)** methodology with:
 
 ### 🔜 Next Steps
 - Add more knowledge base content
-- Implement actual channel integrations (Gmail API, Twilio)
-- Add web form frontend
-- Deploy to production environment
-- Optional: Migrate to database for scale
+- Enhance monitoring and alerting
+- Security hardening (HMAC validation, input sanitization)
+- Add HTTPS with cert-manager and Ingress
+- Optimize HPA scaling policies
 
 ### 🚀 Future Enhancements
 - Advanced analytics and reporting
@@ -291,25 +278,35 @@ See LICENSE file for details.
 
 ## 🚧 Roadmap to Production
 
-### Stage 1 - Incubation (Complete)
+### Stage 1 - Incubation (Complete ✅)
 - ✅ Prototype development with Claude Code
 - ✅ Multi-channel proof of concept
 - ✅ Core agent functionality
+- ✅ File-based MCP server with 7 tools
+- ✅ 5 specialized skills for customer support
 
-### Stage 2 - Specialization (In Progress)
-- ⚡ Production-grade implementation with OpenAI Agents SDK
-- ⚡ PostgreSQL CRM system
-- ⚡ Kafka message streaming
-- ⚡ Kubernetes deployment
-- ⚡ Complete web support form
-- ⚡ Gmail and WhatsApp integrations
+### Stage 2 - Specialization (Complete ✅)
+- ✅ Production-grade implementation with OpenAI Agents SDK
+- ✅ PostgreSQL CRM system with pgvector
+- ✅ Kafka message streaming
+- ✅ Redis-based rate limiting (sliding window)
+- ✅ Kubernetes deployment to GKE
+- ✅ CI/CD pipeline with GitHub Actions
+- ✅ Gmail and WhatsApp integrations
+- ✅ Web form support
+- ✅ HMAC webhook security
+- ✅ Prometheus metrics and observability
 
-### Stage 3 - Scale
-- ⚡ Production deployment
-- ⚡ Comprehensive monitoring and alerting
+### Stage 3 - Scale (In Progress ⚡)
+- ✅ Production deployment (http://35.223.193.60)
+- ✅ Zero-downtime rolling updates
+- ✅ Horizontal Pod Autoscaling (HPA)
+- ⚡ HTTPS with cert-manager and Ingress
+- ⚡ Comprehensive monitoring dashboards
 - ⚡ Advanced analytics and reporting
 - ⚡ Cross-platform CRM integration
-- ⚡ Advanced AI capabilities
+- ⚡ Multi-language support
+- ⚡ Voice channel integration
 
 ---
 

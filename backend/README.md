@@ -2,6 +2,10 @@
 
 Production-ready customer support agent built with OpenAI Agents SDK, FastAPI, and PostgreSQL.
 
+**🚀 Live API**: http://35.223.193.60
+- Health Check: http://35.223.193.60/health
+- API Docs: http://35.223.193.60/docs
+
 ## Overview
 
 This backend service provides an intelligent customer success agent that:
@@ -10,6 +14,9 @@ This backend service provides an intelligent customer success agent that:
 - Creates support tickets and tracks conversation history
 - Escalates complex issues to human agents with intelligent routing
 - Provides observability tracking for performance monitoring
+- Rate limiting with Redis (sliding window algorithm)
+- Message streaming with Apache Kafka
+- Multi-channel support (Gmail, WhatsApp, Web Form)
 
 **Tech Stack:**
 - **Framework**: FastAPI (async)
@@ -17,7 +24,10 @@ This backend service provides an intelligent customer success agent that:
 - **Database**: PostgreSQL with pgvector extension (Neon)
 - **ORM**: SQLAlchemy 2.0 (async)
 - **Embeddings**: FastEmbed (sentence-transformers/all-MiniLM-L6-v2)
+- **Message Queue**: Apache Kafka (aiokafka)
+- **Cache/Rate Limiting**: Redis (redis.asyncio)
 - **Package Manager**: UV
+- **Deployment**: Kubernetes (GKE) with CI/CD via GitHub Actions
 
 ## Prerequisites
 
@@ -31,7 +41,7 @@ This backend service provides an intelligent customer success agent that:
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/syeda-hoorian-ali/crm-digital-fte.git
+git clone https://github.com/syeda-hoorian-ali/crm-digital-fte-factory.git
 cd backend
 ```
 
