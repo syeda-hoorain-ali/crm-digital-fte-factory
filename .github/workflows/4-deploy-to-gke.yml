@@ -187,6 +187,29 @@ jobs:
           kubectl get deployments -n ${{ env.NAMESPACE }}
           kubectl get hpa -n ${{ env.NAMESPACE }}
 
+      - name: Get external IP
+        run: |
+          echo "🌐 Waiting for LoadBalancer external IP (may take 1-2 minutes)..."
+          for i in {1..12}; do
+            EXTERNAL_IP=$(kubectl get service customer-success-fte -n ${{ env.NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            if [ -n "$EXTERNAL_IP" ]; then
+              echo "✅ External IP assigned: $EXTERNAL_IP"
+              echo ""
+              echo "=========================================="
+              echo "🚀 API Endpoints:"
+              echo "=========================================="
+              echo "Health Check: http://$EXTERNAL_IP/health"
+              echo "API Docs: http://$EXTERNAL_IP/docs"
+              echo "=========================================="
+              exit 0
+            fi
+            echo "Attempt $i/12: IP not assigned yet, waiting 10s..."
+            sleep 10
+          done
+          echo "⚠️ LoadBalancer IP not assigned after 2 minutes"
+          echo "This is normal for first-time deployments. Check later with:"
+          echo "kubectl get service customer-success-fte -n ${{ env.NAMESPACE }}"
+
       - name: Rollback on failure
         if: failure() && (steps.deploy_api.outcome == 'failure' || steps.deploy_worker.outcome == 'failure' || steps.wait_api.outcome == 'failure' || steps.wait_worker.outcome == 'failure')
         run: |
