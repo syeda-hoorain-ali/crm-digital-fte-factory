@@ -11,11 +11,35 @@ data:
 
     scrape_configs:
       - job_name: 'customer-success-api'
-        static_configs:
-          - targets: ['customer-success-fte:80']
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - customer-success-fte
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_component]
+            action: keep
+            regex: api
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: $1:8080
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
         metrics_path: '/metrics/'
 
-      - job_name: 'local-backend'
-        static_configs:
-          - targets: ['host.docker.internal:8080']
+      - job_name: 'customer-success-worker'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - customer-success-fte
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_component]
+            action: keep
+            regex: message-processor
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: $1:8080
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
         metrics_path: '/metrics/'

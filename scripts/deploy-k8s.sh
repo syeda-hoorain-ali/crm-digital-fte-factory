@@ -211,6 +211,7 @@ print_success "HorizontalPodAutoscalers created"
 # Step 14a: Deploy Prometheus
 print_info "Step 14a: Deploying Prometheus..."
 
+kubectl apply -f k8s/prometheus-pvc.yaml
 kubectl apply -f k8s/prometheus-configmap.yaml
 kubectl apply -f k8s/prometheus-deployment.yaml
 
@@ -219,7 +220,8 @@ print_success "Prometheus deployment created"
 # Step 14b: Deploy Grafana
 print_info "Step 14b: Deploying Grafana..."
 
-# Create Grafana configuration
+# Create Grafana PVC and configuration
+kubectl apply -f k8s/grafana-pvc.yaml
 kubectl apply -f k8s/grafana-ini-configmap.yaml
 kubectl apply -f k8s/grafana-configmap.yaml
 

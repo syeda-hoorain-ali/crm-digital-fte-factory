@@ -90,6 +90,7 @@ jobs:
             --from-literal=TWILIO_WEBHOOK_SECRET="${{ secrets.TWILIO_WEBHOOK_SECRET }}" \
             --from-literal=SMTP_USERNAME="${{ secrets.SMTP_USERNAME }}" \
             --from-literal=SMTP_PASSWORD="${{ secrets.SMTP_PASSWORD }}" \
+            --from-literal=GRAFANA_ADMIN_PASSWORD="${{ secrets.GRAFANA_ADMIN_PASSWORD }}" \
             -n ${{ env.NAMESPACE }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
@@ -101,10 +102,12 @@ jobs:
       - name: Deploy monitoring stack (Prometheus, Grafana)
         run: |
           # Deploy Prometheus
+          kubectl apply -f k8s/prometheus-pvc.yaml -n ${{ env.NAMESPACE }}
           kubectl apply -f k8s/prometheus-configmap.yaml -n ${{ env.NAMESPACE }}
           kubectl apply -f k8s/prometheus-deployment.yaml -n ${{ env.NAMESPACE }}
 
           # Deploy Grafana
+          kubectl apply -f k8s/grafana-pvc.yaml -n ${{ env.NAMESPACE }}
           kubectl apply -f k8s/grafana-ini-configmap.yaml -n ${{ env.NAMESPACE }}
           kubectl apply -f k8s/grafana-configmap.yaml -n ${{ env.NAMESPACE }}
 

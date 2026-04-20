@@ -21,7 +21,10 @@ spec:
           name: web
         env:
         - name: GF_SECURITY_ADMIN_PASSWORD
-          value: "admin"
+          valueFrom:
+            secretKeyRef:
+              name: fte-secrets
+              key: GRAFANA_ADMIN_PASSWORD
         - name: GF_USERS_ALLOW_SIGN_UP
           value: "false"
         - name: GF_AUTH_ANONYMOUS_ENABLED
@@ -63,7 +66,8 @@ spec:
         configMap:
           name: grafana-dashboard-crm
       - name: grafana-storage
-        emptyDir: {}
+        persistentVolumeClaim:
+          claimName: grafana-storage
 ---
 apiVersion: v1
 kind: Service

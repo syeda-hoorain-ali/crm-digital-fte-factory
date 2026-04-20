@@ -46,6 +46,7 @@ declare -A SECRETS=(
     ["NEON_PROJECT_ID"]="Neon project ID"
     ["NEON_MAIN_BRANCH_ID"]="Neon main branch ID"
     ["GEMINI_API_KEY"]="Gemini API key for AI agent"
+    ["GRAFANA_ADMIN_PASSWORD"]="Grafana admin password for monitoring dashboard"
 )
 
 echo "📋 Checking required secrets..."
