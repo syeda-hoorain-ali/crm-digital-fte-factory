@@ -3,6 +3,9 @@
 .env
 .env.*
 
+# Development Kubernetes configs
+k8s-dev/
+
 # Python
 __pycache__/
 *.pyc

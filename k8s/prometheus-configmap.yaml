@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: customer-success-fte
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    scrape_configs:
+      - job_name: 'customer-success-api'
+        static_configs:
+          - targets: ['customer-success-fte:80']
+        metrics_path: '/metrics/'
+
+      - job_name: 'local-backend'
+        static_configs:
+          - targets: ['host.docker.internal:8080']
+        metrics_path: '/metrics/'
