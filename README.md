@@ -51,6 +51,8 @@ The system is deployed to Google Kubernetes Engine (GKE) with:
 - Worker: 3/3 replicas ready (auto-scaled)
 - Redis: 1/1 replicas ready
 - Kafka: 1/1 replicas ready
+- Prometheus: 1/1 replicas ready
+- Grafana: 1/1 replicas ready (with CRM dashboard)
 
 **CI/CD Pipeline:**
 See [CI/CD Quick Start](docs/CI_CD_QUICKSTART.md) for setup instructions.
@@ -295,18 +297,21 @@ See LICENSE file for details.
 - ✅ Gmail and WhatsApp integrations
 - ✅ Web form support
 - ✅ HMAC webhook security
-- ✅ Prometheus metrics and observability
+- ✅ Prometheus + Grafana monitoring stack with CRM dashboard
+- ✅ Persistent storage for metrics and dashboards (PVCs)
 
-### Stage 3 - Scale (In Progress ⚡)
+### Stage 3 - Scale (Complete ✅)
 - ✅ Production deployment (http://35.223.193.60)
 - ✅ Zero-downtime rolling updates
 - ✅ Horizontal Pod Autoscaling (HPA)
-- ⚡ HTTPS with cert-manager and Ingress
-- ⚡ Comprehensive monitoring dashboards
-- ⚡ Advanced analytics and reporting
-- ⚡ Cross-platform CRM integration
-- ⚡ Multi-language support
-- ⚡ Voice channel integration
+- ✅ Prometheus + Grafana monitoring stack
+- ✅ CRM dashboard with request rate, latency, and error metrics
+- ✅ Persistent storage for monitoring data (10Gi Prometheus, 5Gi Grafana)
+- ✅ Kubernetes service discovery for pod-level metrics
+- ⚡ HTTPS with cert-manager and Ingress (not-planned)
+- ⚡ Advanced analytics and reporting (not-planned)
+- ⚡ Multi-language support (not-planned)
+- ⚡ Voice channel integration (not-planned)
 
 ---
 

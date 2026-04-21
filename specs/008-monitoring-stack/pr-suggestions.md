@@ -204,8 +204,8 @@ User wants to keep current probe configuration. Current settings work reliably f
 - [X] Suggestions fetched from PR
 - [X] All suggestions reviewed
 - [X] Changes applied to codebase (7 applied, 2 rejected)
-- [ ] Changes committed locally
-- [ ] Changes pushed to remote
+- [X] Changes committed locally
+- [X] Changes pushed to remote
 - [X] Tracking file updated
 
 **Skipped/Rejected:**
@@ -213,8 +213,41 @@ User wants to keep current probe configuration. Current settings work reliably f
 - S009: Keep current probe config (user preference)
 
 **Commit Details:**
-- **Commit Hash**: (will be filled after commit)
-- **Commit Message**: (will be filled after commit)
+- **Commit Hash**: `7bf9829`
+- **Commit Message**:
+  ```
+  fix: apply PR #7 code review suggestions from gemini-code-assist
+
+  Applied 7 of 9 security and reliability improvements:
+
+  Security fixes (Critical/High):
+  - Move Grafana admin password to Kubernetes Secret (S002)
+  - Remove hardcoded password from grafana.ini ConfigMap (S003)
+
+  Reliability improvements (Medium):
+  - Replace static_configs with kubernetes_sd_configs for proper pod discovery (S004)
+  - Remove local dev target host.docker.internal:8080 (S005)
+  - Add PersistentVolumeClaims for Grafana (5Gi) and Prometheus (10Gi) storage (S006, S007)
+  - Replace hardcoded datasource UIDs with variable references in dashboard (S008)
+
+  User decisions:
+  - Keep LoadBalancer for Grafana (public access required, password secured)
+  - Keep current probe configuration (works reliably for app startup)
+
+  Changes:
+  - k8s/grafana-deployment.yaml: Secret reference, PVC storage
+  - k8s/grafana-ini-configmap.yaml: Removed password section
+  - k8s/prometheus-configmap.yaml: kubernetes_sd_configs with pod discovery
+  - k8s/prometheus-deployment.yaml: PVC storage
+  - k8s/crm-dashboard.json: Variable datasource references
+  - k8s/grafana-pvc.yaml: New 5Gi PVC
+  - k8s/prometheus-pvc.yaml: New 10Gi PVC
+  - .github/workflows/4-deploy-to-gke.yml: Added PVCs, Grafana password secret
+  - scripts/deploy-k8s.sh: Added PVC deployment steps
+  - scripts/validate-ci-secrets.sh: Added GRAFANA_ADMIN_PASSWORD validation
+
+  Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+  ```
 
 ---
 
