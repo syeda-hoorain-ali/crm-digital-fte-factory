@@ -4,6 +4,13 @@ set -e
 # Kubernetes Deployment Script
 # This script automates the deployment of the customer success FTE system to Kubernetes
 
+# Source environment variables from backend/.env
+if [ -f "backend/.env" ]; then
+    set -a
+    source backend/.env
+    set +a
+fi
+
 echo "🚀 Starting Kubernetes deployment..."
 
 # Color codes for output
@@ -201,6 +208,51 @@ kubectl apply -f k8s/hpa.yaml
 
 print_success "HorizontalPodAutoscalers created"
 
+# Step 14a: Deploy Prometheus
+print_info "Step 14a: Deploying Prometheus..."
+
+kubectl apply -f k8s/prometheus-pvc.yaml
+kubectl apply -f k8s/prometheus-configmap.yaml
+kubectl apply -f k8s/prometheus-deployment.yaml
+
+print_success "Prometheus deployment created"
+
+# Step 14b: Deploy Grafana
+print_info "Step 14b: Deploying Grafana..."
+
+# Create Grafana PVC and configuration
+kubectl apply -f k8s/grafana-pvc.yaml
+kubectl apply -f k8s/grafana-ini-configmap.yaml
+kubectl apply -f k8s/grafana-configmap.yaml
+
+# Create Grafana dashboard from JSON file (using preferred pattern)
+kubectl create configmap grafana-dashboard-crm \
+  --from-file=crm-dashboard.json=k8s/crm-dashboard.json \
+  --namespace=customer-success-fte \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+# Deploy Grafana
+kubectl apply -f k8s/grafana-deployment.yaml
+
+print_success "Grafana deployment created"
+
+# Step 14c: Wait for monitoring stack to be ready
+print_info "Step 14c: Waiting for monitoring stack to be ready..."
+
+echo "Waiting for Prometheus pod..."
+kubectl wait --for=condition=ready pod -l app=prometheus -n customer-success-fte --timeout=60s || {
+    print_warning "Prometheus pod not ready yet, checking status..."
+    kubectl get pods -n customer-success-fte -l app=prometheus
+}
+
+echo "Waiting for Grafana pod..."
+kubectl wait --for=condition=ready pod -l app=grafana -n customer-success-fte --timeout=60s || {
+    print_warning "Grafana pod not ready yet, checking status..."
+    kubectl get pods -n customer-success-fte -l app=grafana
+}
+
+print_success "Monitoring stack is ready"
+
 # Step 15: Wait for pods to be ready
 print_info "Step 15: Waiting for pods to be ready (this may take 2-3 minutes)..."
 
@@ -264,6 +316,16 @@ echo ""
 echo "=========================================="
 print_success "Deployment complete!"
 echo "=========================================="
+echo ""
+echo "📊 Monitoring Dashboard:"
+echo "   To access Grafana dashboard, run:"
+echo "   kubectl port-forward service/grafana 3000:80 -n customer-success-fte"
+echo "   Then visit: http://localhost:3000"
+echo "   Login: admin / admin"
+echo ""
+echo "📈 Prometheus:"
+echo "   kubectl port-forward service/prometheus 9090:9090 -n customer-success-fte"
+echo "   Then visit: http://localhost:9090"
 echo ""
 echo "Next steps:"
 echo "1. Wait for TLS certificate to be issued (2-5 minutes):"
