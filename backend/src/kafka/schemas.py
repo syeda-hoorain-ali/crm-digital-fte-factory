@@ -10,7 +10,7 @@ class Channel(str, Enum):
     """Communication channels."""
     EMAIL = "email"
     WHATSAPP = "whatsapp"
-    WEBFORM = "webform"
+    WEB_FORM = "web_form"
 
 
 class MessageType(str, Enum):

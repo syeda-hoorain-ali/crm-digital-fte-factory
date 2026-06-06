@@ -14,6 +14,17 @@
         "run",
         "src/main.py"
       ]
+    },
+    "neon": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@neondatabase/mcp-server-neon",
+        "start",
+        "napi_h0vkntrk2k7u7fbwi75avbos9jvtg9k8m58h89oybkshqqk4624ccpf0w46rgizs"
+      ],
+      "env": {}
     }
   }
 }

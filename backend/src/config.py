@@ -76,7 +76,7 @@ class Settings(BaseSettings):
 
     # Agent Configuration
     agent_model: str = Field(
-        default="gemini-2.5-flash",
+        default="gemini-3-flash-preview",
         description="Gemini model for agent operations"
     )
     agent_max_tokens: int = Field(

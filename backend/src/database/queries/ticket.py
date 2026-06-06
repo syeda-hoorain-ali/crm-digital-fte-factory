@@ -114,6 +114,30 @@ async def get_ticket(
     return result.scalar_one_or_none()
 
 
+async def get_ticket_by_conversation(
+    session: AsyncSession,
+    conversation_id: UUID,
+) -> Ticket | None:
+    """
+    Get the most recent ticket for a conversation.
+
+    Args:
+        session: Database session
+        conversation_id: Conversation UUID
+
+    Returns:
+        Ticket | None: Most recent ticket or None if not found
+    """
+    stmt = (
+        select(Ticket)
+        .where(col(Ticket.conversation_id) == conversation_id)
+        .order_by(col(Ticket.created_at).desc())
+        .limit(1)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
 async def update_ticket(
     session: AsyncSession,
     ticket_id: UUID,

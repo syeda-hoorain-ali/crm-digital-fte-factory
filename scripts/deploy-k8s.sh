@@ -71,8 +71,11 @@ if [ ${#MISSING_VARS[@]} -ne 0 ]; then
 fi
 
 # Set defaults for optional variables
-export GMAIL_SUPPORT_CREDENTIALS_PATH="${GMAIL_SUPPORT_CREDENTIALS_PATH:-}"
 export GMAIL_WEBHOOK_SECRET="${GMAIL_WEBHOOK_SECRET:-}"
+
+# Override GMAIL_SUPPORT_CREDENTIALS_PATH for Kubernetes (container path)
+# The .env file has a relative path for local development, but Kubernetes needs the container path
+export GMAIL_SUPPORT_CREDENTIALS_PATH="/app/backend/gmail-support-credentials.json"
 
 print_success "All required environment variables are set"
 
@@ -211,6 +214,7 @@ print_success "HorizontalPodAutoscalers created"
 # Step 14a: Deploy Prometheus
 print_info "Step 14a: Deploying Prometheus..."
 
+kubectl apply -f k8s/prometheus-rbac.yaml
 kubectl apply -f k8s/prometheus-pvc.yaml
 kubectl apply -f k8s/prometheus-configmap.yaml
 kubectl apply -f k8s/prometheus-deployment.yaml
@@ -300,7 +304,7 @@ print_info "Step 17: Testing health endpoint..."
 kubectl port-forward -n customer-success-fte svc/customer-success-fte 8080:80 &
 PF_PID=$!
 
-sleep 3
+sleep 6
 
 if curl -s http://localhost:8080/health > /dev/null; then
     print_success "Health endpoint is responding"
@@ -309,7 +313,7 @@ else
 fi
 
 # Kill port-forward
-kill $PF_PID 2>/dev/null || true
+# kill $PF_PID 2>/dev/null || true
 
 # Step 18: Display next steps
 echo ""

@@ -9,12 +9,51 @@ from uuid import UUID
 
 from agents import RunHooks as BaseRunHooks, AgentHookContext, RunContextWrapper, Agent, Tool
 from sqlalchemy.ext.asyncio import AsyncSession
+from prometheus_client import Counter, Histogram, Gauge
 
 from src.config import settings
 from src.database.queries import create_agent_metric
 from .context import CustomerSuccessContext
 
 logger = logging.getLogger(__name__)
+
+# Prometheus metrics
+agent_requests_total = Counter(
+    'agent_requests_total',
+    'Total number of agent requests',
+    ['channel', 'status']
+)
+
+agent_latency_seconds = Histogram(
+    'agent_latency_seconds',
+    'Agent request latency in seconds',
+    ['channel'],
+    buckets=[0.1, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0]
+)
+
+agent_tokens_total = Counter(
+    'agent_tokens_total',
+    'Total tokens used by agent',
+    ['channel']
+)
+
+agent_tool_calls_total = Counter(
+    'agent_tool_calls_total',
+    'Total tool calls made by agent',
+    ['channel']
+)
+
+agent_cost_total = Counter(
+    'agent_cost_total',
+    'Total estimated cost of agent requests',
+    ['channel']
+)
+
+agent_active_requests = Gauge(
+    'agent_active_requests',
+    'Number of currently active agent requests',
+    ['channel']
+)
 
 
 class RunHooks(BaseRunHooks):
@@ -74,6 +113,10 @@ class RunHooks(BaseRunHooks):
 
         self.start_time = time.time()
 
+        # Increment active requests gauge
+        channel = context.context.channel
+        agent_active_requests.labels(channel=channel).inc()
+
         # Structured JSON logging with timestamps and correlation IDs (T034)
         logger.info(
             self._format_log(
@@ -87,6 +130,9 @@ class RunHooks(BaseRunHooks):
             )
         )
 
+        # Save token usage
+        tokens_used = context.usage.input_tokens + context.usage.output_tokens
+        self.tokens_used = tokens_used
 
     async def on_agent_end(
         self,
@@ -144,6 +190,9 @@ class RunHooks(BaseRunHooks):
 
         # Populate AgentMetric in database (T036)
         try:
+            # Get channel from context
+            channel = context.context.channel
+
             await create_agent_metric(
                 self.session,
                 conversation_id=self.conversation_id,
@@ -151,12 +200,23 @@ class RunHooks(BaseRunHooks):
                 latency_ms=latency_ms,
                 tool_call_count=self.tool_call_count,
                 estimated_cost=estimated_cost,
+                channel=channel,
                 success=success,
                 error_message=error_message,
             )
             logger.debug(
                 f"AgentMetric created for conversation {self.conversation_id}"
             )
+
+            # Emit Prometheus metrics
+            status = "success" if success else "error"
+            agent_requests_total.labels(channel=channel, status=status).inc()
+            agent_latency_seconds.labels(channel=channel).observe(latency_ms / 1000.0)
+            agent_tokens_total.labels(channel=channel).inc(tokens_used)
+            agent_tool_calls_total.labels(channel=channel).inc(self.tool_call_count)
+            agent_cost_total.labels(channel=channel).inc(estimated_cost)
+            agent_active_requests.labels(channel=channel).dec()
+
         except Exception as e:
             logger.error(
                 f"Failed to create AgentMetric for conversation {self.conversation_id}: {e}"
@@ -193,6 +253,9 @@ class RunHooks(BaseRunHooks):
             )
         )
 
+        # Save token usage
+        tokens_used = context.usage.input_tokens + context.usage.output_tokens
+        self.tokens_used = tokens_used
 
     async def on_tool_end(
         self, 
@@ -223,6 +286,9 @@ class RunHooks(BaseRunHooks):
             )
         )
 
+        # Save token usage
+        tokens_used = context.usage.input_tokens + context.usage.output_tokens
+        self.tokens_used = tokens_used
 
     async def on_handoff(
         self,
@@ -253,6 +319,9 @@ class RunHooks(BaseRunHooks):
             )
         )
 
+        # Save token usage
+        tokens_used = context.usage.input_tokens + context.usage.output_tokens
+        self.tokens_used = tokens_used
 
     @staticmethod
     def _calculate_cost(tokens_used: int, model: str = settings.agent_model) -> float:

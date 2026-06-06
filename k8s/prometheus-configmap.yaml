@@ -42,4 +42,4 @@ data:
             replacement: $1:8080
           - source_labels: [__meta_kubernetes_pod_name]
             target_label: pod
-        metrics_path: '/metrics/'
+        metrics_path: '/metrics'

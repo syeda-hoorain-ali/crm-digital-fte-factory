@@ -1,4 +1,4 @@
-import { HeadsetIcon } from "lucide-react";
+import { GithubIcon, HeadsetIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SupportForm } from "@/components/support-form";
 
@@ -38,6 +38,14 @@ export const Index = () => {
           your account ID in the subject line.
         </p>
       </div>
+      <a
+        href="https://github.com/syeda-hoorain-ali/crm-digital-fte-factory"
+        target="_blank"
+        className="absolute bottom-2 right-2 flex items-center gap-1 text-xs text-muted-foreground"
+      >
+        <img src="/github-icon.svg" className="size-4" />
+        <span>Syeda Hoorain Ali</span>
+      </a>
     </main>
   );
 };

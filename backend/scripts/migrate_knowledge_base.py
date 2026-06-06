@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Optional
 
 # Set dummy OpenAI API key if not set (migration doesn't need it)
-if not os.getenv("OPENAI_API_KEY") or not os.getenv("OPENAI_API_KEY").startswith("sk-"):
+if not os.getenv("OPENAI_API_KEY") or not os.getenv("OPENAI_API_KEY", "").startswith("sk-"):
     os.environ["OPENAI_API_KEY"] = "sk-proj-dummy-key-for-migration-script-only"
 
 from fastembed import TextEmbedding
@@ -189,6 +189,7 @@ async def test_vector_search(query: str, limit: int = 3) -> None:
 
     # Search database
     async with get_session() as session:
+        from sqlmodel import col
         from sqlalchemy import text, select, func
         from sqlalchemy.sql import cast
 
@@ -196,12 +197,12 @@ async def test_vector_search(query: str, limit: int = 3) -> None:
         # The <=> operator calculates cosine distance
         stmt = (
             select(
-                KnowledgeBase.id,
-                KnowledgeBase.title,
-                KnowledgeBase.category,
-                KnowledgeBase.embedding.cosine_distance(query_embedding).label('distance')
+                col(KnowledgeBase.id),
+                col(KnowledgeBase.title),
+                col(KnowledgeBase.category),
+                col(KnowledgeBase.embedding).cosine_distance(query_embedding).label('distance')
             )
-            .order_by(KnowledgeBase.embedding.cosine_distance(query_embedding))
+            .order_by(col(KnowledgeBase.embedding).cosine_distance(query_embedding))
             .limit(limit)
         )
 

@@ -11,8 +11,24 @@ data:
         type: prometheus
         access: proxy
         url: http://prometheus:9090
+        uid: prometheus
+        isDefault: false
+        editable: false
+      - name: PostgreSQL
+        type: postgres
+        access: proxy
+        url: $__env{DATABASE_HOST}:$__env{DATABASE_PORT}
+        database: $__env{DATABASE_NAME}
+        user: $__env{DATABASE_USER}
+        uid: postgres
         isDefault: true
         editable: false
+        jsonData:
+          sslmode: require
+          postgresVersion: 1600
+          timescaledb: false
+        secureJsonData:
+          password: $__env{DATABASE_PASSWORD}
 ---
 apiVersion: v1
 kind: ConfigMap

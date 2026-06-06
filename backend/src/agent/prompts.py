@@ -89,7 +89,7 @@ Output structured decision with:
 CHANNEL_ADAPTATION_PROMPT = """
 Format agent responses according to channel-specific style guidelines before sending to customers.
 
-This skill should be used AFTER escalation-decision returns should_escalate=False and BEFORE calling send_response tool.
+This skill should be used AFTER escalation-decision returns should_escalate=False.
 
 Channel-Specific Guidelines:
 

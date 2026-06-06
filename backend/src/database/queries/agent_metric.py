@@ -27,6 +27,7 @@ async def create_agent_metric(
     latency_ms: int,
     tool_call_count: int,
     estimated_cost: float,
+    channel: str | None = None,
     success: bool = True,
     error_message: str | None = None,
 ) -> AgentMetric:
@@ -40,15 +41,17 @@ async def create_agent_metric(
         latency_ms: Response latency in milliseconds
         tool_call_count: Number of tool calls made
         estimated_cost: Estimated cost in USD
+        channel: Communication channel (email, whatsapp, web_form)
         success: Whether the agent run was successful
         error_message: Error message if failed
 
     Returns:
         AgentMetric: Created metric instance
     """
-    
+
     metric = AgentMetric(
         conversation_id=conversation_id,
+        channel=channel,
         tokens_used=tokens_used,
         latency_ms=latency_ms,
         tool_call_count=tool_call_count,

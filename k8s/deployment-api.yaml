@@ -33,12 +33,12 @@ spec:
         image: ${CONTAINER_REGISTRY}/customer-success-fte:${IMAGE_TAG}
         imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 8000
+        - containerPort: 8080
           name: http
           protocol: TCP
         env:
         - name: PORT
-          value: "8000"
+          value: "8080"
         envFrom:
         - configMapRef:
             name: fte-config
@@ -54,7 +54,7 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 8000
+            port: 8080
             scheme: HTTP
           initialDelaySeconds: 120
           periodSeconds: 10
@@ -64,7 +64,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /health
-            port: 8000
+            port: 8080
             scheme: HTTP
           initialDelaySeconds: 60
           periodSeconds: 10
@@ -84,8 +84,16 @@ spec:
           mountPath: /tmp
         - name: cache
           mountPath: /app/.cache
+        - name: gmail-credentials
+          mountPath: /app/backend/gmail-support-credentials.json
+          subPath: gmail-support-credentials.json
+          readOnly: true
       volumes:
       - name: tmp
         emptyDir: {}
       - name: cache
         emptyDir: {}
+      - name: gmail-credentials
+        secret:
+          secretName: gmail-credentials
+          defaultMode: 0400

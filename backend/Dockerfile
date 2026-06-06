@@ -25,6 +25,13 @@ COPY .python-version pyproject.toml uv.lock* README.md ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
 
+# Download embedding model at build time to bake it into the image
+# This prevents runtime downloads and works with read-only filesystem
+ENV HF_HOME=/app/hf_cache
+RUN mkdir -p /app/hf_cache && \
+    .venv/bin/python -c "from fastembed import TextEmbedding; TextEmbedding(model_name='sentence-transformers/all-MiniLM-L6-v2', cache_dir='/app/hf_cache')" && \
+    echo "Embedding model downloaded successfully"
+
 # Copy the rest of the application code
 COPY src/ src/
 
@@ -54,15 +61,20 @@ COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 # Copy application code from builder
 COPY --from=builder --chown=appuser:appuser /app/src /app/src
 
+# Copy pre-downloaded embedding model from builder
+COPY --from=builder --chown=appuser:appuser /app/hf_cache /app/hf_cache
+
 # Switch to non-root user (UID 1000)
 USER appuser
 
 # Set environment variables
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
+ENV HF_HOME=/app/hf_cache
+ENV TRANSFORMERS_CACHE=/app/hf_cache
 
 # Expose API port
-EXPOSE 8000
+EXPOSE 8080
 
 # Run the FastAPI app using uvicorn
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]

@@ -7,6 +7,12 @@ on:
       - completed
     branches:
       - main
+  push:
+    branches:
+      - main
+    paths:
+      - 'k8s/**'
+      - '.github/workflows/4-deploy-to-gke.yml'
   workflow_dispatch:
     inputs:
       image_tag:
@@ -80,9 +86,13 @@ jobs:
           # Create secrets from GitHub secrets (not from template file)
           kubectl create secret generic fte-secrets \
             --from-literal=DATABASE_URL="${{ secrets.PRODUCTION_DATABASE_URL }}" \
+            --from-literal=DATABASE_HOST="${{ secrets.DATABASE_HOST }}" \
+            --from-literal=DATABASE_PORT="${{ secrets.DATABASE_PORT }}" \
+            --from-literal=DATABASE_NAME="${{ secrets.DATABASE_NAME }}" \
+            --from-literal=DATABASE_USER="${{ secrets.DATABASE_USER }}" \
+            --from-literal=DATABASE_PASSWORD="${{ secrets.DATABASE_PASSWORD }}" \
             --from-literal=GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
             --from-literal=GMAIL_SERVICE_ACCOUNT_PATH="${{ secrets.GMAIL_SERVICE_ACCOUNT_PATH }}" \
-            --from-literal=GMAIL_SUPPORT_CREDENTIALS_PATH="${{ secrets.GMAIL_SUPPORT_CREDENTIALS_PATH }}" \
             --from-literal=GMAIL_WEBHOOK_SECRET="${{ secrets.GMAIL_WEBHOOK_SECRET }}" \
             --from-literal=TWILIO_ACCOUNT_SID="${{ secrets.TWILIO_ACCOUNT_SID }}" \
             --from-literal=TWILIO_AUTH_TOKEN="${{ secrets.TWILIO_AUTH_TOKEN }}" \
@@ -102,6 +112,7 @@ jobs:
       - name: Deploy monitoring stack (Prometheus, Grafana)
         run: |
           # Deploy Prometheus
+          kubectl apply -f k8s/prometheus-rbac.yaml -n ${{ env.NAMESPACE }}
           kubectl apply -f k8s/prometheus-pvc.yaml -n ${{ env.NAMESPACE }}
           kubectl apply -f k8s/prometheus-configmap.yaml -n ${{ env.NAMESPACE }}
           kubectl apply -f k8s/prometheus-deployment.yaml -n ${{ env.NAMESPACE }}

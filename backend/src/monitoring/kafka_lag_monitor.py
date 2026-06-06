@@ -5,7 +5,7 @@ from typing import Optional
 import asyncio
 
 from aiokafka import AIOKafkaConsumer
-from aiokafka.admin import AIOKafkaAdminClient, ConsumerGroupDescription
+from aiokafka.admin import AIOKafkaAdminClient
 from aiokafka.errors import KafkaError
 
 from ..monitoring.prometheus_metrics import update_kafka_lag

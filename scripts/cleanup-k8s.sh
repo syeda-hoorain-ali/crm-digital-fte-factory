@@ -59,12 +59,13 @@ kubectl delete service -n customer-success-fte --all --ignore-not-found=true
 
 print_success "Service deleted"
 
-# Step 4: Delete Deployments
-print_info "Step 4: Deleting Deployments..."
+# Step 4: Delete Deployments and StatefulSets
+print_info "Step 4: Deleting Deployments and StatefulSets..."
 
 kubectl delete deployment -n customer-success-fte --all --ignore-not-found=true
+kubectl delete statefulset -n customer-success-fte --all --ignore-not-found=true
 
-print_success "Deployments deleted"
+print_success "Deployments and StatefulSets deleted"
 
 # Step 5: Wait for pods to terminate
 print_info "Step 5: Waiting for pods to terminate..."
@@ -76,29 +77,45 @@ kubectl wait --for=delete pod -l app=customer-success-fte -n customer-success-ft
 
 print_success "Pods terminated"
 
-# Step 6: Delete Secret
-print_info "Step 6: Deleting Secret..."
+# Step 6: Delete RBAC resources
+print_info "Step 6: Deleting RBAC resources..."
+
+kubectl delete rolebinding -n customer-success-fte --all --ignore-not-found=true
+kubectl delete role -n customer-success-fte --all --ignore-not-found=true
+kubectl delete serviceaccount -n customer-success-fte --all --ignore-not-found=true
+
+print_success "RBAC resources deleted"
+
+# Step 7: Delete PersistentVolumeClaims
+print_info "Step 7: Deleting PersistentVolumeClaims..."
+
+kubectl delete pvc -n customer-success-fte --all --ignore-not-found=true
+
+print_success "PersistentVolumeClaims deleted"
+
+# Step 8: Delete Secret
+print_info "Step 8: Deleting Secret..."
 
 kubectl delete secret -n customer-success-fte --all --ignore-not-found=true
 
 print_success "Secret deleted"
 
-# Step 7: Delete ConfigMap
-print_info "Step 7: Deleting ConfigMap..."
+# Step 9: Delete ConfigMap
+print_info "Step 9: Deleting ConfigMap..."
 
 kubectl delete configmap -n customer-success-fte --all --ignore-not-found=true
 
 print_success "ConfigMap deleted"
 
-# Step 8: Delete Namespace
-print_info "Step 8: Deleting Namespace..."
+# Step 10: Delete Namespace
+print_info "Step 10: Deleting Namespace..."
 
 kubectl delete namespace customer-success-fte --ignore-not-found=true
 
 print_success "Namespace deleted"
 
-# Step 9: Verify cleanup
-print_info "Step 9: Verifying cleanup..."
+# Step 11: Verify cleanup
+print_info "Step 11: Verifying cleanup..."
 
 if kubectl get namespace customer-success-fte &> /dev/null; then
     print_warning "Namespace still exists (may be in Terminating state)"

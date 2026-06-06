@@ -158,6 +158,65 @@ async def get_latest_message(
     return result.scalar_one_or_none()
 
 
+async def update_message(
+    session: AsyncSession,
+    message_id: UUID,
+    tokens_used: int | None = None,
+    latency_ms: int | None = None,
+    delivery_status: str | None = None,
+) -> Message | None:
+    """
+    Update message observability fields and delivery status.
+
+    Args:
+        session: Database session
+        message_id: Message UUID
+        tokens_used: Token count for LLM calls
+        latency_ms: Response latency in milliseconds
+        delivery_status: Delivery status (pending, delivered, failed)
+
+    Returns:
+        Message | None: Updated message or None if not found
+    """
+    from ..models import DeliveryStatus
+    from datetime import datetime, timezone
+
+    stmt = select(Message).where(col(Message.id) == message_id)
+    result = await session.execute(stmt)
+    message = result.scalar_one_or_none()
+
+    if not message:
+        return None
+
+    # Update fields if provided
+    if tokens_used is not None:
+        message.tokens_used = tokens_used
+    if latency_ms is not None:
+        message.latency_ms = latency_ms
+    if delivery_status is not None:
+        message.delivery_status = DeliveryStatus(delivery_status)
+
+    message.updated_at = datetime.now(timezone.utc)
+
+    await session.flush()
+    await session.refresh(message)
+
+    logger.info(
+        f"Updated message",
+        extra={
+            "operation": "update",
+            "entity": "message",
+            "message_id": str(message_id),
+            "tokens_used": tokens_used,
+            "latency_ms": latency_ms,
+            "delivery_status": delivery_status,
+            "success": True,
+        }
+    )
+
+    return message
+
+
 async def delete_message(
     session: AsyncSession,
     message_id: UUID,

@@ -8,6 +8,8 @@ import asyncio
 import logging
 import signal
 import sys
+from aiohttp import web
+from prometheus_client import make_asgi_app
 
 from redis.asyncio import Redis
 
@@ -31,12 +33,84 @@ logger = logging.getLogger(__name__)
 kafka_consumer_service: KafkaConsumerService | None = None
 redis_client: Redis | None = None
 shutdown_event = asyncio.Event()
+metrics_server_task: asyncio.Task | None = None
 
 
 def handle_shutdown_signal(signum, frame) -> None:
     """Handle shutdown signals (SIGTERM, SIGINT)."""
     logger.info(f"Received signal {signum}, initiating shutdown...")
     shutdown_event.set()
+
+
+async def start_metrics_server() -> None:
+    """Start HTTP server for Prometheus metrics on port 8080."""
+    try:
+        # Create aiohttp app with Prometheus metrics endpoint
+        app = web.Application()
+
+        # Mount Prometheus metrics at /metrics
+        metrics_app = make_asgi_app()
+
+        async def metrics_handler(request):
+            """Handle metrics requests."""
+            scope = {
+                'type': 'http',
+                'method': request.method,
+                'path': request.path,
+                'query_string': request.query_string.encode(),
+                'headers': [(k.encode(), v.encode()) for k, v in request.headers.items()],
+            }
+
+            async def receive():
+                return {'type': 'http.request', 'body': await request.read()}
+
+            response_started = False
+            status = 200
+            headers = []
+            body_parts = []
+
+            async def send(message):
+                nonlocal response_started, status, headers, body_parts
+                if message['type'] == 'http.response.start':
+                    response_started = True
+                    status = message['status']
+                    headers = message.get('headers', [])
+                elif message['type'] == 'http.response.body':
+                    body_parts.append(message.get('body', b''))
+
+            await metrics_app(scope, receive, send)
+
+            response = web.Response(
+                status=status,
+                headers={k.decode(): v.decode() for k, v in headers},
+                body=b''.join(body_parts)
+            )
+            return response
+
+        app.router.add_get('/metrics', metrics_handler)
+
+        # Add health check endpoint
+        async def health_handler(request):
+            return web.Response(text='OK', status=200)
+
+        app.router.add_get('/health', health_handler)
+
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, '0.0.0.0', 8080)
+        await site.start()
+
+        logger.info("Metrics HTTP server started on port 8080")
+
+        # Keep server running until shutdown
+        await shutdown_event.wait()
+
+        # Cleanup
+        await runner.cleanup()
+        logger.info("Metrics HTTP server stopped")
+
+    except Exception as e:
+        logger.error(f"Failed to start metrics server: {e}", exc_info=True)
 
 
 async def main() -> None:
@@ -104,11 +178,35 @@ async def main() -> None:
         # Step 5: Initialize Gmail handler
         gmail_handler = None
         try:
-            if settings.gmail_service_account_path:
+            # Check for credentials (support/receiver account for webhook processing)
+            credentials_path = None
+            if settings.gmail_support_credentials_path:
+                credentials_path = settings.gmail_support_credentials_path
+                logger.info(f"Using support/receiver account credentials: {credentials_path}")
+            elif settings.gmail_service_account_path:
+                credentials_path = settings.gmail_service_account_path
+                logger.info(f"Using service account: {credentials_path}")
+            elif settings.gmail_test_credentials_path:
+                credentials_path = settings.gmail_test_credentials_path
+                logger.info(f"Using test credentials: {credentials_path}")
+
+            if credentials_path:
                 from google.oauth2.credentials import Credentials
                 import json
+                import os
 
-                creds_data = json.loads(settings.gmail_service_account_path)
+                # Resolve relative path
+                if not os.path.isabs(credentials_path):
+                    credentials_path = os.path.join(os.getcwd(), credentials_path)
+                    logger.info(f"Resolved path: {credentials_path}")
+
+                if not os.path.exists(credentials_path):
+                    raise FileNotFoundError(f"Gmail credentials not found at {credentials_path}")
+
+                logger.info(f"Loading credentials from {credentials_path}")
+                with open(credentials_path, 'r') as f:
+                    creds_data = json.load(f)
+
                 credentials = Credentials(
                     token=creds_data.get('token'),
                     refresh_token=creds_data.get('refresh_token'),
@@ -120,7 +218,7 @@ async def main() -> None:
 
                 # Use webhook secret if configured, otherwise use dummy value for dev
                 webhook_secret = settings.gmail_webhook_secret or "dev-secret-not-used"
-                
+
                 logger.info("Initializing Gmail handler...")
                 gmail_handler = GmailHandler(
                     credentials=credentials,
@@ -135,7 +233,12 @@ async def main() -> None:
             logger.error(f"Failed to initialize Gmail handler: {e}", exc_info=True)
             logger.warning("Email channel will not be available")
 
-        # Step 6: Initialize and start KafkaConsumerService (tested component)
+        # Step 6: Start metrics HTTP server in background
+        global metrics_server_task
+        logger.info("Starting metrics HTTP server...")
+        metrics_server_task = asyncio.create_task(start_metrics_server())
+
+        # Step 7: Initialize and start KafkaConsumerService (tested component)
         logger.info("Initializing Kafka consumer service...")
         kafka_consumer_service = KafkaConsumerService(
             bootstrap_servers=settings.kafka_bootstrap_servers,

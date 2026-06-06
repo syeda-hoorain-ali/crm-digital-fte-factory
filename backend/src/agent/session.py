@@ -114,8 +114,6 @@ class PostgresSession(SessionABC):
                     **self._pending_tool_calls.get(call_id, {}),
                     "call_id": call_id,
                     "output": item.get("output"),
-                    "id": item.get("id"),
-                    "status": item.get("status"),
                 }
                 logger.debug(f"Captured tool call output: (call_id: {call_id})")
                 continue
@@ -130,11 +128,19 @@ class PostgresSession(SessionABC):
                     else MessageDirection.OUTBOUND
                 )
 
+                # Skip agent messages - they will be created by kafka_consumer_service
+                # with observability metrics (tokens_used, latency_ms) from hooks
+                if role == MessageRole.AGENT:
+                    logger.debug(f"Skipping agent message creation (handled by consumer service)")
+                    # Clear pending tool calls to prevent accumulation
+                    self._pending_tool_calls.clear()
+                    continue
+
                 tool_calls_to_store = []
                 if self._pending_tool_calls:
                     tool_calls_to_store = list(self._pending_tool_calls.copy().values())
                     self._pending_tool_calls.clear()
-                
+
 
                 await create_message(
                     self.session,

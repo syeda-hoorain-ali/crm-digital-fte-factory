@@ -8,7 +8,8 @@ export const useSupportForm = () => {
 
   const submitSupportRequest = useMutation({
     mutationFn: async (data: SupportFormValues) => {
-      return supportRequestQuery(data)
+      const result = await supportRequestQuery(data)
+      return result;
     },
     onError: (error) => {
       if (error instanceof SupportApiError) {

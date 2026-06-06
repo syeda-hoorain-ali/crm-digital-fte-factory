@@ -7,17 +7,13 @@ from typing import Any
 from uuid import UUID
 
 from aiokafka import AIOKafkaConsumer
-from agents import Runner
 
-from ..agent.customer_success_agent import customer_success_agent, CustomerSuccessContext
-from ..agent.hooks import RunHooks
-from ..agent.session import PostgresSession
 from ..database.connection import get_session
-from ..database.models import Channel, ConversationStatus
-from ..database.queries import get_conversation
+from ..database.models import Channel, MessageRole
 from ..kafka.schemas import ChannelMessage
 from ..channels.gmail_handler import GmailHandler
 from ..channels.whatsapp_handler import WhatsAppHandler
+from .agent_invocation_service import AgentInvocationService
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +43,7 @@ class KafkaConsumerService:
         self.consumer: AIOKafkaConsumer | None = None
         self.running = False
         self._task: asyncio.Task | None = None
+        self.agent_service = AgentInvocationService()
 
     async def start(self) -> None:
         """Start the Kafka consumer service."""
@@ -178,77 +175,8 @@ class KafkaConsumerService:
         Returns:
             Agent response text, or None if no response needed
         """
-        try:
-            async with get_session() as session:
-                # Get conversation from database
-                if not channel_message.customer_id:
-                    logger.warning("No customer_id in message, skipping agent invocation")
-                    return None
-
-                # Find conversation by customer and thread
-                # For now, we'll use the conversation_id from the message metadata if available
-                # Otherwise, we need to query by customer_id and thread_id
-                conversation_id_str = channel_message.metadata.get("conversation_id")
-
-                if not conversation_id_str:
-                    logger.warning("No conversation_id in message metadata, skipping agent invocation")
-                    return None
-
-                conversation_id = UUID(conversation_id_str)
-                conversation = await get_conversation(session, conversation_id)
-
-                if not conversation:
-                    logger.warning(f"Conversation {conversation_id} not found")
-                    return None
-
-                # Initialize agent context
-                ctx = CustomerSuccessContext(
-                    db_session=session,
-                    customer_id=channel_message.customer_id,
-                    customer_email=channel_message.customer_contact if channel_message.channel == Channel.EMAIL else None,
-                    customer_phone=channel_message.customer_contact if channel_message.channel == Channel.WHATSAPP else None,
-                    channel=channel_message.channel.value,
-                    conversation_id=str(conversation_id),
-                )
-
-                # Create agent session for conversation memory
-                agent_session = PostgresSession(
-                    session=session,
-                    conversation_id=conversation_id,
-                    channel=channel_message.channel,
-                )
-
-                # Create hooks for observability
-                hooks = RunHooks(
-                    session=session,
-                    conversation_id=conversation_id,
-                    correlation_id=channel_message.message_id,
-                )
-
-                # Execute agent
-                logger.info(f"Invoking agent for message {channel_message.message_id}")
-                result = await Runner.run(
-                    customer_success_agent,
-                    channel_message.body,
-                    session=agent_session,
-                    context=ctx,
-                    hooks=hooks,
-                )
-
-                logger.info(
-                    f"Agent completed for message {channel_message.message_id}",
-                    extra={
-                        "message_id": channel_message.message_id,
-                        "response_length": len(result.final_output) if result.final_output else 0,
-                        "escalated": ctx.escalation_triggered,
-                    },
-                )
-
-                return result.final_output
-
-        except Exception as e:
-            logger.error(f"Failed to invoke agent: {e}", exc_info=True)
-            return None
+        async with get_session() as session:
+            return await self.agent_service.invoke_agent(session, channel_message)
 
     async def _send_response(
         self, channel_message: ChannelMessage, response_text: str
@@ -259,19 +187,52 @@ class KafkaConsumerService:
             channel_message: Original inbound message
             response_text: Agent's response text
         """
+        delivery_status = "pending"  # Default to pending, update to delivered on success
+
         try:
             if channel_message.channel == Channel.EMAIL:
                 await self._send_email_response(channel_message, response_text)
             elif channel_message.channel == Channel.WHATSAPP:
                 await self._send_whatsapp_response(channel_message, response_text)
+            elif channel_message.channel == Channel.WEB_FORM:
+                # Web form submissions should receive email responses
+                await self._send_email_response(channel_message, response_text)
             else:
                 logger.warning(f"No handler for channel: {channel_message.channel.value}")
+                # Still mark as failed since no handler exists
+                raise ValueError(f"No handler for channel: {channel_message.channel.value}")
+
+            # If we reach here, sending was successful
+            delivery_status = "delivered"
 
         except Exception as e:
             logger.error(
                 f"Failed to send response via {channel_message.channel.value}: {e}",
                 exc_info=True,
             )
+            delivery_status = "failed"
+
+        finally:
+            # Always update agent message delivery status (delivered or failed)
+            try:
+                async with get_session() as session:
+                    conversation_id_str = channel_message.metadata.get("conversation_id")
+                    if conversation_id_str:
+                        from src.database.queries.message import get_latest_message, update_message
+
+                        conversation_id = UUID(conversation_id_str)
+                        agent_message = await get_latest_message(session, conversation_id)
+
+                        if agent_message and agent_message.role == MessageRole.AGENT:
+                            await update_message(
+                                session,
+                                agent_message.id,
+                                delivery_status=delivery_status
+                            )
+                            await session.commit()
+                            logger.info(f"Updated agent message delivery status to {delivery_status}")
+            except Exception as update_error:
+                logger.error(f"Failed to update agent message delivery status: {update_error}")
 
     async def _send_email_response(
         self, channel_message: ChannelMessage, response_text: str
@@ -283,33 +244,28 @@ class KafkaConsumerService:
             response_text: Agent's response text
         """
         if not self.gmail_handler:
-            logger.warning("Gmail handler not configured, cannot send email response")
-            return
+            logger.error("Gmail handler not configured, cannot send email response")
+            raise RuntimeError("Gmail handler not configured")
 
-        try:
-            # Extract threading information
-            thread_id = channel_message.thread_id
-            subject = channel_message.subject or "Re: Support Request"
+        # Extract threading information
+        thread_id = channel_message.thread_id
+        subject = channel_message.subject or "Re: Support Request"
 
-            # Send reply
-            result = await self.gmail_handler.send_outbound_message(
-                customer_contact=channel_message.customer_contact,
-                message_body=response_text,
-                subject=subject,
-                thread_id=thread_id,
-            )
+        # Send reply
+        result = await self.gmail_handler.send_outbound_message(
+            customer_contact=channel_message.customer_contact,
+            message_body=response_text,
+            subject=subject,
+            thread_id=thread_id,
+        )
 
-            logger.info(
-                f"Email response sent to {channel_message.customer_contact}",
-                extra={
-                    "message_id": result.get("message_id"),
-                    "thread_id": result.get("thread_id"),
-                },
-            )
-
-        except Exception as e:
-            logger.error(f"Failed to send email response: {e}", exc_info=True)
-            raise
+        logger.info(
+            f"Email response sent to {channel_message.customer_contact}",
+            extra={
+                "message_id": result.get("message_id"),
+                "thread_id": result.get("thread_id"),
+            },
+        )
 
     async def _send_whatsapp_response(
         self, channel_message: ChannelMessage, response_text: str
@@ -321,21 +277,16 @@ class KafkaConsumerService:
             response_text: Agent's response text
         """
         if not self.whatsapp_handler:
-            logger.warning("WhatsApp handler not configured, cannot send response")
-            return
+            logger.error("WhatsApp handler not configured, cannot send response")
+            raise RuntimeError("WhatsApp handler not configured")
 
-        try:
-            # Send WhatsApp message
-            result = await self.whatsapp_handler.send_outbound_message(
-                customer_contact=channel_message.customer_contact,
-                message_body=response_text,
-            )
+        # Send WhatsApp message
+        result = await self.whatsapp_handler.send_outbound_message(
+            customer_contact=channel_message.customer_contact,
+            message_body=response_text,
+        )
 
-            logger.info(
-                f"WhatsApp response sent to {channel_message.customer_contact}",
-                extra={"message_sid": result.get("message_sid")},
-            )
-
-        except Exception as e:
-            logger.error(f"Failed to send WhatsApp response: {e}", exc_info=True)
-            raise
+        logger.info(
+            f"WhatsApp response sent to {channel_message.customer_contact}",
+            extra={"message_sid": result.get("message_sid")},
+        )

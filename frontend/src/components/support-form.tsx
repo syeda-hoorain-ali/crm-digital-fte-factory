@@ -37,9 +37,9 @@ export function SupportForm() {
   const remainingChars = MAX_MESSAGE_LENGTH - (messageValue?.length ?? 0);
 
   const onSubmit = async (data: SupportFormValues) => {
-    const response = await submitSupportRequest(data, {
-      onSuccess() {
-        setTicketId(response.ticket_id)
+    await submitSupportRequest(data, {
+      onSuccess (result) {
+        setTicketId(result.ticket_id)
         form.reset()
       }
     })

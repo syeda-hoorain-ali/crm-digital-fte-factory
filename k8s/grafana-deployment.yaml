@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: grafana
-        image: grafana/grafana:10.2.2
+        image: grafana/grafana:11.5.0
         ports:
         - containerPort: 3000
           name: web
@@ -25,6 +25,33 @@ spec:
             secretKeyRef:
               name: fte-secrets
               key: GRAFANA_ADMIN_PASSWORD
+        - name: DATABASE_HOST
+          valueFrom:
+            secretKeyRef:
+              name: fte-secrets
+              key: DATABASE_HOST
+        - name: DATABASE_PORT
+          valueFrom:
+            secretKeyRef:
+              name: fte-secrets
+              key: DATABASE_PORT
+        - name: DATABASE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: fte-secrets
+              key: DATABASE_NAME
+        - name: DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: fte-secrets
+              key: DATABASE_USER
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fte-secrets
+              key: DATABASE_PASSWORD
+        - name: GF_DATABASE_URL_ALLOW_ENVIRONMENT_VARIABLES
+          value: "true"
         - name: GF_USERS_ALLOW_SIGN_UP
           value: "false"
         - name: GF_AUTH_ANONYMOUS_ENABLED

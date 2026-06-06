@@ -192,17 +192,6 @@ async def submit_support_request(
             await session.commit()
             await session.refresh(conversation)
 
-        # Create message
-        message = Message(
-            conversation_id=conversation.id,
-            channel=Channel.WEB_FORM,
-            direction=MessageDirection.INBOUND,
-            role=MessageRole.CUSTOMER,
-            content=form_data.message,
-            delivery_status=DeliveryStatus.DELIVERED
-        )
-        session.add(message)
-
         # Create ticket
         priority_map = {
             "low": Priority.LOW,
@@ -237,6 +226,9 @@ async def submit_support_request(
 
         channel_message = await web_form_handler.process_inbound_message(payload)
         channel_message.customer_id = str(customer.id)
+
+        # Add conversation_id to metadata for agent invocation
+        channel_message.metadata["conversation_id"] = str(conversation.id)
 
         # Send to Kafka
         if kafka_producer:

@@ -13,7 +13,7 @@ class WebFormHandler(BaseChannelHandler):
 
     def __init__(self):
         """Initialize web form handler."""
-        super().__init__(Channel.WEBFORM)
+        super().__init__(Channel.WEB_FORM)
 
     async def process_inbound_message(self, payload: dict[str, Any]):
         """Process web form submission.
