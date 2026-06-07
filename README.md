@@ -6,6 +6,8 @@ This project implements a Customer Success Digital FTE (Full-Time Equivalent) fo
 
 **🌐 Live Demo**: [https://cloudstream-crm.vercel.app/](https://cloudstream-crm.vercel.app/)
 
+**🎥 Demo Video**: [CloudStream CRM Demo.mp4](./CloudStream_CRM_Demo.mp4) - Watch the complete system demonstration including multi-channel support, agent workflow, and monitoring dashboard.
+
 ## 🎯 Project Overview
 
 The CRM Digital FTE is designed to handle customer support across multiple channels:
